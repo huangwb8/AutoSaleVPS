@@ -105,6 +105,18 @@
   box-shadow: none;
 }
 
+.asv-btn--sm {
+  padding: 0.45rem 1.2rem;
+  font-size: 0.9rem;
+}
+
+.asv-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 .asv-timezone label {
   display: flex;
   flex-direction: column;
@@ -147,55 +159,102 @@
   box-shadow: 0 15px 35px rgba(239, 79, 79, 0.2);
 }
 
-.asv-card__header {
+.asv-card__title {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
-.asv-sale-link {
-  color: var(--asv-accent);
-  font-weight: 600;
-  text-decoration: none;
+.asv-card__title strong {
+  font-size: 1.2rem;
+  flex: 1;
 }
 
-.asv-card__tag {
+.asv-sale-btn {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--asv-border);
-  border-radius: 999px;
-  padding: 0.1rem 0.65rem;
-  margin-left: 0.5rem;
-  font-size: 0.75rem;
-  color: var(--asv-muted);
-  background: rgba(15, 23, 42, 0.04);
+  justify-content: center;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 0.55rem 1.2rem;
+  border: 1px solid var(--asv-border-strong);
+  font-weight: 600;
+  color: var(--asv-accent-strong);
+  background: rgba(249, 115, 22, 0.1);
+  width: 100%;
+}
+
+.asv-sale-btn:hover {
+  border-color: var(--asv-accent-strong);
 }
 
 .asv-card__promo {
-  font-size: 1.05rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.6;
   color: var(--asv-text);
   font-weight: 600;
 }
 
-.asv-card__meta {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.asv-promo-editor {
+  margin-top: 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  color: var(--asv-muted);
+  gap: 0.5rem;
+}
+
+.asv-promo-editor__textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--asv-border);
+  padding: 0.6rem 0.8rem;
+  font-family: inherit;
   font-size: 0.95rem;
+  resize: vertical;
+  min-height: 90px;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.asv-promo-hint {
+  font-size: 0.85rem;
+  color: var(--asv-muted);
+}
+
+.asv-promo-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.asv-meta-block {
+  margin: 0;
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.asv-card__note {
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.15);
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.95rem;
+  color: var(--asv-accent-strong);
 }
 
 .asv-card__footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.75rem;
   color: var(--asv-muted);
 }
 

@@ -14,6 +14,7 @@ require_once __DIR__ . '/src/php/class-asv-config-repository.php';
 require_once __DIR__ . '/src/php/class-asv-sale-parser.php';
 require_once __DIR__ . '/src/php/class-asv-availability-service.php';
 require_once __DIR__ . '/src/php/class-asv-promo-service.php';
+require_once __DIR__ . '/src/php/class-asv-meta-service.php';
 require_once __DIR__ . '/src/php/class-asv-rest-controller.php';
 
 if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
@@ -49,7 +50,8 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 			$parser       = new ASV_Sale_Parser();
 			$availability = new ASV_Availability_Service( $this->repository );
 			$promo        = new ASV_Promo_Service( $this->repository );
-			$this->rest_controller = new ASV_REST_Controller( $this->repository, $parser, $availability, $promo );
+			$meta         = new ASV_Meta_Service( $this->repository );
+			$this->rest_controller = new ASV_REST_Controller( $this->repository, $parser, $availability, $promo, $meta );
 
 			add_action( 'init', array( $this, 'register_shortcode' ) );
 			add_action( 'init', array( $this, 'register_assets' ) );
@@ -143,6 +145,7 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 					'version'   => self::VERSION,
 					'hasKey'    => ! empty( $this->repository->get_api_key() ),
 					'options'   => timezone_identifiers_list(),
+					'extraCss'  => $this->repository->get_extra_css(),
 				)
 			);
 		}

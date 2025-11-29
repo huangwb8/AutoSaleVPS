@@ -9,6 +9,7 @@ require_once __DIR__ . '/class-asv-config-repository.php';
 require_once __DIR__ . '/class-asv-sale-parser.php';
 require_once __DIR__ . '/class-asv-availability-service.php';
 require_once __DIR__ . '/class-asv-promo-service.php';
+require_once __DIR__ . '/class-asv-meta-service.php';
 
 if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 	class ASV_REST_Controller {
@@ -43,18 +44,27 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		protected $promo;
 
 		/**
+		 * Meta helper.
+		 *
+		 * @var ASV_Meta_Service
+		 */
+		protected $meta;
+
+		/**
 		 * Constructor.
 		 *
 		 * @param ASV_Config_Repository    $repository Repo.
 		 * @param ASV_Sale_Parser          $parser     Parser.
 		 * @param ASV_Availability_Service $availability Availability helper.
 		 * @param ASV_Promo_Service        $promo Promo helper.
+		 * @param ASV_Meta_Service         $meta  Meta helper.
 		 */
-		public function __construct( $repository, $parser, $availability, $promo ) {
+		public function __construct( $repository, $parser, $availability, $promo, $meta ) {
 			$this->repository  = $repository;
 			$this->parser      = $parser;
 			$this->availability = $availability;
 			$this->promo       = $promo;
+			$this->meta        = $meta;
 		}
 
 		/**
@@ -130,6 +140,23 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 
 			register_rest_route(
 				self::NAMESPACE_SLUG,
+				'/design',
+				array(
+					array(
+						'methods'  => WP_REST_Server::READABLE,
+						'callback' => array( $this, 'get_design_settings' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+					array(
+						'methods'  => WP_REST_Server::CREATABLE,
+						'callback' => array( $this, 'save_design_settings' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+				)
+			);
+
+			register_rest_route(
+				self::NAMESPACE_SLUG,
 				'/vps',
 				array(
 					'methods'  => WP_REST_Server::READABLE,
@@ -154,6 +181,16 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 				array(
 					'methods'  => WP_REST_Server::CREATABLE,
 					'callback' => array( $this, 'refresh_promo' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				)
+			);
+
+			register_rest_route(
+				self::NAMESPACE_SLUG,
+				'/vps/meta',
+				array(
+					'methods'  => WP_REST_Server::CREATABLE,
+					'callback' => array( $this, 'refresh_meta' ),
 					'permission_callback' => array( $this, 'can_manage' ),
 				)
 			);
@@ -292,6 +329,32 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		}
 
 		/**
+		 * Design payload (extra css).
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function get_design_settings() {
+			return rest_ensure_response(
+				array(
+					'extraCss' => $this->repository->get_extra_css(),
+				)
+			);
+		}
+
+		/**
+		 * Save extra CSS.
+		 *
+		 * @param WP_REST_Request $request Request.
+		 * @return WP_REST_Response
+		 */
+		public function save_design_settings( $request ) {
+			$css = (string) $request->get_param( 'extra_css' );
+			$this->repository->save_extra_css( wp_unslash( $css ) );
+
+			return rest_ensure_response( array( 'saved' => true ) );
+		}
+
+		/**
 		 * Build VPS payload.
 		 *
 		 * @return WP_REST_Response
@@ -303,16 +366,21 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			$vps      = array();
 
 			foreach ( $this->repository->get_vps_definitions() as $definition ) {
-				$meta   = $this->parser->extract_meta( $definition['sale_url'] );
-				$status = isset( $statuses[ $definition['vendor'] . '-' . $definition['pid'] ] ) ? $statuses[ $definition['vendor'] . '-' . $definition['pid'] ] : null;
-				$vps[]  = array(
+				$meta       = $this->parser->extract_meta( $definition['sale_url'] );
+				$status     = isset( $statuses[ $definition['vendor'] . '-' . $definition['pid'] ] ) ? $statuses[ $definition['vendor'] . '-' . $definition['pid'] ] : null;
+				$promo      = $this->promo->get_promo( $definition, $model, $meta );
+				$meta_view  = $this->meta->get_display( $definition, $model, $meta );
+				$vps[]      = array(
 					'vendor'        => $definition['vendor'],
 					'pid'           => $definition['pid'],
 					'sale_url'      => $definition['sale_url'],
 					'valid_url'     => $definition['valid_url'],
 					'human_comment' => $definition['human_comment'],
 					'meta'          => $meta,
-					'promo'         => $this->promo->get_promo( $definition, $model, $meta ),
+					'meta_display'  => isset( $meta_view['content'] ) ? $meta_view['content'] : '',
+					'meta_source'   => isset( $meta_view['source'] ) ? $meta_view['source'] : 'raw',
+					'promo'         => $promo['content'],
+					'promo_source'  => $promo['source'],
 					'available'     => $status ? $status['available'] : null,
 					'checked_at'    => $status ? $status['checked_at'] : null,
 					'message'       => $status ? $status['message'] : '',
@@ -366,8 +434,9 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		 * @return WP_REST_Response|WP_Error
 		 */
 		public function refresh_promo( $request ) {
-			$vendor = sanitize_text_field( (string) $request->get_param( 'vendor' ) );
-			$pid    = sanitize_text_field( (string) $request->get_param( 'pid' ) );
+			$vendor  = sanitize_text_field( (string) $request->get_param( 'vendor' ) );
+			$pid     = sanitize_text_field( (string) $request->get_param( 'pid' ) );
+			$content = $request->get_param( 'content' );
 
 			$definition = $this->find_definition( $vendor, $pid );
 
@@ -377,10 +446,64 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 
 			$model = $this->repository->get_model();
 			$meta  = $this->parser->extract_meta( $definition['sale_url'] );
-			$this->promo->invalidate( $definition, $meta );
+
+			if ( null !== $content ) {
+				$body = sanitize_textarea_field( wp_unslash( (string) $content ) );
+				if ( '' === trim( $body ) ) {
+					return new WP_Error( 'invalid_promo', '推广语不能为空', array( 'status' => 400 ) );
+				}
+
+				$promo = $this->promo->save_manual_promo( $definition, $meta, $body );
+				return rest_ensure_response( array(
+					'promo'  => $promo['content'],
+					'source' => $promo['source'],
+				) );
+			}
+
+			$this->promo->clear_manual_promo( $definition, $meta );
 			$promo = $this->promo->get_promo( $definition, $model, $meta );
 
-			return rest_ensure_response( array( 'promo' => $promo ) );
+			return rest_ensure_response( array(
+				'promo'  => $promo['content'],
+				'source' => $promo['source'],
+			) );
+		}
+
+		/**
+		 * Format VPS meta info.
+		 *
+		 * @param WP_REST_Request $request Request.
+		 * @return WP_REST_Response|WP_Error
+		 */
+		public function refresh_meta( $request ) {
+			$vendor  = sanitize_text_field( (string) $request->get_param( 'vendor' ) );
+			$pid     = sanitize_text_field( (string) $request->get_param( 'pid' ) );
+			$content = $request->get_param( 'content' );
+
+			$definition = $this->find_definition( $vendor, $pid );
+
+			if ( ! $definition ) {
+				return new WP_Error( 'not_found', 'VPS 未找到', array( 'status' => 404 ) );
+			}
+
+			$model = $this->repository->get_model();
+			$meta  = $this->parser->extract_meta( $definition['sale_url'] );
+
+			if ( null !== $content ) {
+				$body = sanitize_textarea_field( wp_unslash( (string) $content ) );
+				if ( '' === trim( $body ) ) {
+					return new WP_Error( 'invalid_meta', '展示信息不能为空', array( 'status' => 400 ) );
+				}
+
+				$result = $this->meta->save_manual_meta( $definition, $body );
+			} else {
+				$result = $this->meta->regenerate_meta( $definition, $model, $meta );
+			}
+
+			return rest_ensure_response( array(
+				'content' => $result['content'],
+				'source'  => $result['source'],
+			) );
 		}
 
 		/**

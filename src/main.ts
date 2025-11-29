@@ -11,6 +11,7 @@ declare global {
       version: string;
       hasKey: boolean;
       options: string[];
+      extraCss: string;
     };
   }
 }

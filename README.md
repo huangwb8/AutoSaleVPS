@@ -4,7 +4,7 @@
 ## 使用方法
 1. **准备依赖**：在仓库根目录运行 `npm install` 安装前端依赖，并执行 `composer install` 拉取 PHP 工具。
 2. **配置默认数据**：根据自己的推广计划修改 `config/config.toml`（联盟 ID、商品 PID、校验延迟/间隔）与 `config/model.toml`（模型地址、提示词）。这些文件会被打包进插件，也可以在 WordPress 后台通过内置编辑器再次修改。
-3. **构建并打包**：执行 `npm run build` 生成 `assets/js/main.js` 与 `assets/css/main.css`，随后运行 `npm run package` 得到 `AutoSaleVPS.zip`。
+3. **构建并打包**：执行 `npm run build` 生成 `assets/js/main.js` 与 `assets/css/main.css`，随后运行 `npm run package` 得到形如 `AutoSaleVPS-v202511291333.zip` 的版本化安装包（同时会复制一份为 `AutoSaleVPS.zip` 方便上传），且插件内部版本号也会自动写成 `vyyyymmddhhmm` 以便 WordPress 后台展示。
 4. **安装插件**：在 WordPress 后台上传 `AutoSaleVPS.zip` 并启用插件。
 5. **嵌入页面**：在任意文章或页面插入短代码 `[AutoSaleVPS]`。前台访客可看到已验证的 VPS 列表，管理员额外拥有配置和诊断面板。
 

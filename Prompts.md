@@ -123,7 +123,7 @@ human_comment = ''
 [model_providers.omg]
 base_url = 'https://api.ohmygpt.com/v1'
 prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
-prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'
+prompt_vps_info = '基于输入给出一断推销VPS的广告，30个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。这是一个例子：`RackNerd 2025年黑五优惠活动。中配里的战斗机！算是比较均衡的机型了。这一款可以畅玩各种docker应用。`'
 ```
 
 这里的模型商omg是一个第三方的模型商，提供类似openai的sdk调用，因此可以用于构建由类openai模型驱动的智能应用。这是一个模型商的模型使用示例（和OpenAI的模型基本上是一样的），帮助你了解如何调用LLM来驱动业务：

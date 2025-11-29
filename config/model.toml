@@ -3,3 +3,4 @@
 base_url = 'https://api.ohmygpt.com/v1'
 prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
 prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'
+prompt_meta_layout = '请基于输入的JSON信息，整理一段可读性强的多行中文简介，每行突出一个参数或卖点，格式保持“字段：内容”。'

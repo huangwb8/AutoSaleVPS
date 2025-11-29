@@ -5,7 +5,10 @@ export interface VpsRecord {
   valid_url: string;
   human_comment: string;
   meta: string[];
+  meta_display?: string;
+  meta_source?: string;
   promo: string;
+  promo_source: string;
   available: boolean | null;
   checked_at: number | null;
   message: string;
@@ -91,9 +94,30 @@ export class ASVRestClient {
   }
 
   refreshPromo(vendor: string, pid: string) {
-    return this.request('/vps/promo', {
+    return this.request<{ promo: string; source: string }>('/vps/promo', {
       method: 'POST',
       body: JSON.stringify({ vendor, pid })
+    });
+  }
+
+  savePromo(vendor: string, pid: string, content: string) {
+    return this.request<{ promo: string; source: string }>('/vps/promo', {
+      method: 'POST',
+      body: JSON.stringify({ vendor, pid, content })
+    });
+  }
+
+  refreshMeta(vendor: string, pid: string) {
+    return this.request<{ content: string; source: string }>('/vps/meta', {
+      method: 'POST',
+      body: JSON.stringify({ vendor, pid })
+    });
+  }
+
+  saveMeta(vendor: string, pid: string, content: string) {
+    return this.request<{ content: string; source: string }>('/vps/meta', {
+      method: 'POST',
+      body: JSON.stringify({ vendor, pid, content })
     });
   }
 
@@ -105,6 +129,17 @@ export class ASVRestClient {
     return this.request('/timezone', {
       method: 'POST',
       body: JSON.stringify({ timezone })
+    });
+  }
+
+  fetchExtraCss(): Promise<{ extraCss: string }> {
+    return this.request('/design');
+  }
+
+  saveExtraCss(extraCss: string) {
+    return this.request('/design', {
+      method: 'POST',
+      body: JSON.stringify({ extra_css: extraCss })
     });
   }
 }

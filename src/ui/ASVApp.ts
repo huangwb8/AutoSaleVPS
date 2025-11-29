@@ -42,6 +42,26 @@ base_url = 'https://api.ohmygpt.com/v1'
 prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
 prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'`;
 
+const EXTRA_CSS_TEMPLATE = `/* 适配 https://blognas.hwb0307.com/ad 的柔和卡片风格，可按需修改 */
+.asv-root {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 1.2rem;
+}
+
+.asv-card {
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: none;
+}
+
+.asv-sale-btn {
+  border-radius: 6px;
+  background: #f97316;
+  color: #fff !important;
+}`;
+
 interface BootstrapData {
   restUrl: string;
   nonce: string;
@@ -50,6 +70,7 @@ interface BootstrapData {
   version: string;
   hasKey: boolean;
   options: string[];
+  extraCss: string;
 }
 
 interface ModalBundle {
@@ -62,11 +83,13 @@ export class ASVApp {
   private root: HTMLElement;
   private rest: ASVRestClient;
   private logPanel!: ASVLogPanel;
+  private logPanelHost!: HTMLElement;
   private bootstrap: BootstrapData;
   private vpsContainer!: HTMLElement;
   private timezoneSelect!: HTMLSelectElement;
   private configBundle!: ModalBundle;
   private modelBundle!: ModalBundle;
+  private cssBundle!: ModalBundle;
   private keyModal!: ASVModal;
   private keyInput!: HTMLInputElement;
   private hasKey: boolean;
@@ -74,6 +97,7 @@ export class ASVApp {
   private currentVps: VpsRecord[] = [];
   private availabilityTimer?: number;
   private inFlightValidation = false;
+  private extraCssNode?: HTMLStyleElement;
 
   constructor(root: HTMLElement, bootstrap: BootstrapData) {
     this.root = root;
@@ -83,6 +107,7 @@ export class ASVApp {
   }
 
   init() {
+    this.applyExtraCss(this.bootstrap.extraCss || '');
     this.renderLayout();
     this.mountLogPanel();
     this.attachTimezone();
@@ -93,64 +118,63 @@ export class ASVApp {
       this.prepareModals();
       this.loadConfigForEditing();
       this.loadModelForEditing();
+      this.loadExtraCss();
     }
   }
 
   private mountLogPanel() {
-    const panel = document.createElement('div');
-    panel.className = 'asv-log-panel';
-    this.root.appendChild(panel);
-    this.logPanel = new ASVLogPanel(panel, this.bootstrap.timezone);
+    this.logPanel = new ASVLogPanel(this.logPanelHost, this.bootstrap.timezone);
   }
 
   private renderLayout() {
     this.root.innerHTML = '';
 
-    const toolbar = document.createElement('div');
-    toolbar.className = 'asv-toolbar';
-
-    const actions = document.createElement('div');
-    actions.className = 'asv-actions';
-
-    const editConfigBtn = this.createButton('编辑VPS配置');
-    editConfigBtn.dataset.action = 'edit-config';
-    const editModelBtn = this.createButton('编辑模型配置');
-    editModelBtn.dataset.action = 'edit-model';
-    const addKeyBtn = this.createButton(this.hasKey ? '更新KEY' : '添加KEY');
-    addKeyBtn.dataset.action = 'add-key';
-    const checkBtn = this.createButton('检查可用性');
-    checkBtn.dataset.action = 'diagnostics';
-
     if (this.bootstrap.isAdmin) {
-      actions.append(editConfigBtn, editModelBtn, addKeyBtn, checkBtn);
-    } else {
-      const info = document.createElement('p');
-      info.className = 'asv-viewer-note';
-      info.textContent = '您正在查看公开推广信息，配置项仅管理员可见。';
-      actions.appendChild(info);
+      const toolbar = document.createElement('div');
+      toolbar.className = 'asv-toolbar';
+
+      const actions = document.createElement('div');
+      actions.className = 'asv-actions';
+
+      const editConfigBtn = this.createButton('编辑VPS配置');
+      editConfigBtn.dataset.action = 'edit-config';
+      const editModelBtn = this.createButton('编辑模型配置');
+      editModelBtn.dataset.action = 'edit-model';
+      const addKeyBtn = this.createButton(this.hasKey ? '更新KEY' : '添加KEY');
+      addKeyBtn.dataset.action = 'add-key';
+      const cssBtn = this.createButton('额外CSS');
+      cssBtn.dataset.action = 'edit-css';
+      const statusBtn = this.createButton('查看VPS状态');
+      statusBtn.dataset.action = 'check-vps';
+      const checkBtn = this.createButton('检查可用性');
+      checkBtn.dataset.action = 'diagnostics';
+      actions.append(editConfigBtn, editModelBtn, addKeyBtn, cssBtn, statusBtn, checkBtn);
+
+      const timezoneWrap = document.createElement('div');
+      timezoneWrap.className = 'asv-timezone';
+      const label = document.createElement('label');
+      label.textContent = '时区';
+      const select = document.createElement('select');
+      this.bootstrap.options.forEach((zone) => {
+        const option = document.createElement('option');
+        option.value = zone;
+        option.textContent = zone;
+        if (zone === this.bootstrap.timezone) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+      this.timezoneSelect = select;
+      label.appendChild(select);
+      timezoneWrap.appendChild(label);
+
+      toolbar.append(actions, timezoneWrap);
+      this.root.appendChild(toolbar);
     }
 
-    const timezoneWrap = document.createElement('div');
-    timezoneWrap.className = 'asv-timezone';
-    const label = document.createElement('label');
-    label.textContent = '时区';
-    const select = document.createElement('select');
-    select.disabled = !this.bootstrap.isAdmin;
-    this.bootstrap.options.forEach((zone) => {
-      const option = document.createElement('option');
-      option.value = zone;
-      option.textContent = zone;
-      if (zone === this.bootstrap.timezone) {
-        option.selected = true;
-      }
-      select.appendChild(option);
-    });
-    this.timezoneSelect = select;
-    label.appendChild(select);
-    timezoneWrap.appendChild(label);
-
-    toolbar.append(actions, timezoneWrap);
-    this.root.appendChild(toolbar);
+    this.logPanelHost = document.createElement('div');
+    this.logPanelHost.className = 'asv-log-panel';
+    this.root.appendChild(this.logPanelHost);
 
     this.vpsContainer = document.createElement('div');
     this.vpsContainer.className = 'asv-vps-list';
@@ -197,8 +221,14 @@ export class ASVApp {
         case 'edit-model':
           this.modelBundle.modal.show();
           break;
+        case 'edit-css':
+          this.cssBundle.modal.show();
+          break;
         case 'add-key':
           this.keyModal.show();
+          break;
+        case 'check-vps':
+          this.triggerAvailabilitySweep('手动查看VPS状态');
           break;
         case 'diagnostics':
           this.runDiagnostics();
@@ -216,7 +246,7 @@ export class ASVApp {
         this.logPanel.push('配置已保存', 'success');
         this.currentConfig = new ASVConfig(this.configBundle.textarea.value);
         this.loadVpsCards();
-        this.triggerAvailabilitySweep('保存配置后立即验证');
+        this.configBundle.modal.hide();
       } catch (error) {
         this.logPanel.push(`保存失败：${(error as Error).message}`, 'error');
       }
@@ -229,6 +259,17 @@ export class ASVApp {
         this.loadVpsCards();
       } catch (error) {
         this.logPanel.push(`保存模型失败：${(error as Error).message}`, 'error');
+      }
+    });
+
+    this.cssBundle = this.createEditorModal('额外 CSS（可选）', EXTRA_CSS_TEMPLATE, async () => {
+      try {
+        await this.rest.saveExtraCss(this.cssBundle.textarea.value);
+        this.applyExtraCss(this.cssBundle.textarea.value);
+        this.logPanel.push('额外 CSS 已保存', 'success');
+        this.cssBundle.modal.hide();
+      } catch (error) {
+        this.logPanel.push(`保存 CSS 失败：${(error as Error).message}`, 'error');
       }
     });
 
@@ -315,6 +356,17 @@ export class ASVApp {
     }
   }
 
+  private async loadExtraCss() {
+    try {
+      const { extraCss } = await this.rest.fetchExtraCss();
+      this.cssBundle.textarea.value = extraCss;
+      this.applyExtraCss(extraCss);
+      this.logPanel.push('已载入额外 CSS');
+    } catch (error) {
+      this.logPanel.push(`载入额外 CSS 失败：${(error as Error).message}`, 'error');
+    }
+  }
+
   private async loadVpsCards() {
     this.vpsContainer.innerHTML = '<div class="asv-loading">正在抓取VPS数据...</div>';
     try {
@@ -345,43 +397,46 @@ export class ASVApp {
         card.classList.add('asv-card--offline');
       }
 
-      const header = document.createElement('header');
-      header.className = 'asv-card__header';
-      const left = document.createElement('div');
-      const link = document.createElement('a');
-      link.href = item.sale_url;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      link.className = 'asv-sale-link';
-      link.textContent = '推广链接';
-      const tag = document.createElement('span');
-      tag.className = 'asv-card__tag';
-      tag.textContent = `${item.vendor.toUpperCase()} #${item.pid}`;
-      left.append(link, tag);
-      header.append(left, this.createStatusPill(item));
-      card.appendChild(header);
+      const title = document.createElement('div');
+      title.className = 'asv-card__title';
+      const heading = document.createElement('strong');
+      heading.textContent = `${item.vendor.toUpperCase()} #${item.pid}`;
+      title.append(heading, this.createStatusPill(item));
+      card.appendChild(title);
+
+      const saleBtn = document.createElement('a');
+      saleBtn.href = item.sale_url;
+      saleBtn.target = '_blank';
+      saleBtn.rel = 'noopener';
+      saleBtn.className = 'asv-sale-btn';
+      saleBtn.textContent = '打开推广链接';
+      card.appendChild(saleBtn);
 
       const promo = document.createElement('p');
       promo.className = 'asv-card__promo';
-      promo.textContent = item.promo || '等待生成推广话术...';
+      promo.textContent = this.formatPromo(item);
       card.appendChild(promo);
 
-      const metaList = document.createElement('ul');
-      metaList.className = 'asv-card__meta';
-      item.meta.forEach((line) => {
-        const li = document.createElement('li');
-        li.textContent = line;
-        metaList.appendChild(li);
-      });
-      card.appendChild(metaList);
+      if (this.bootstrap.isAdmin) {
+        card.appendChild(this.createPromoEditor(item, promo));
+      }
+
+      const metaBlock = document.createElement('pre');
+      metaBlock.className = 'asv-meta-block';
+      metaBlock.textContent = item.meta.length
+        ? item.meta.join('\n')
+        : '等待抓取 VPS 详情，保存配置并验证后自动填充。';
+      card.appendChild(metaBlock);
+
+      if (item.human_comment) {
+        const note = document.createElement('div');
+        note.className = 'asv-card__note';
+        note.textContent = item.human_comment;
+        card.appendChild(note);
+      }
 
       const footer = document.createElement('footer');
       footer.className = 'asv-card__footer';
-      if (item.human_comment) {
-        const note = document.createElement('span');
-        note.textContent = `备注：${item.human_comment}`;
-        footer.appendChild(note);
-      }
       if (this.bootstrap.isAdmin) {
         const btn = document.createElement('button');
         btn.className = 'asv-btn asv-btn--ghost';
@@ -394,6 +449,126 @@ export class ASVApp {
 
       this.vpsContainer.appendChild(card);
     });
+  }
+
+  private createPromoEditor(item: VpsRecord, display: HTMLElement) {
+    const editor = document.createElement('div');
+    editor.className = 'asv-promo-editor';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'asv-promo-editor__textarea';
+    textarea.value = item.promo || '';
+    textarea.placeholder = '输入自定义推广语，20-100 字，保持真实配置。';
+    editor.appendChild(textarea);
+
+    const hint = document.createElement('div');
+    hint.className = 'asv-promo-hint';
+    hint.textContent = this.describePromoSource(item.promo_source);
+    editor.appendChild(hint);
+
+    const actions = document.createElement('div');
+    actions.className = 'asv-promo-actions';
+
+    const saveBtn = this.createButton('保存推广语');
+    saveBtn.classList.add('asv-btn--sm');
+
+    const regenBtn = this.createButton('AI 重写');
+    regenBtn.classList.add('asv-btn--ghost', 'asv-btn--sm');
+
+    saveBtn.addEventListener('click', () =>
+      this.persistPromoOverride(item.vendor, item.pid, textarea, display, hint, saveBtn, regenBtn)
+    );
+    regenBtn.addEventListener('click', () =>
+      this.regeneratePromo(item.vendor, item.pid, textarea, display, hint, saveBtn, regenBtn)
+    );
+
+    actions.append(saveBtn, regenBtn);
+    editor.appendChild(actions);
+
+    return editor;
+  }
+
+  private describePromoSource(source?: string) {
+    if (source === 'manual') {
+      return '当前为管理员自定义内容';
+    }
+    if (source === 'llm') {
+      return 'AI 基于 prompt_vps_info 自动生成';
+    }
+    return '未检测到 AI 结果，将展示默认描述';
+  }
+
+  private togglePromoButtons(disabled: boolean, ...buttons: HTMLButtonElement[]) {
+    buttons.forEach((btn) => {
+      btn.disabled = disabled;
+    });
+  }
+
+  private async persistPromoOverride(
+    vendor: string,
+    pid: string,
+    textarea: HTMLTextAreaElement,
+    display: HTMLElement,
+    hint: HTMLElement,
+    saveBtn: HTMLButtonElement,
+    regenBtn: HTMLButtonElement
+  ) {
+    const value = textarea.value.trim();
+    if (!value) {
+      this.logPanel.push('推广语不能为空', 'error');
+      textarea.focus();
+      return;
+    }
+
+    this.togglePromoButtons(true, saveBtn, regenBtn);
+    try {
+      const result = await this.rest.savePromo(vendor, pid, value);
+      display.textContent = result.promo || '等待生成推广话术...';
+      textarea.value = result.promo || '';
+      hint.textContent = this.describePromoSource(result.source);
+      this.updatePromoRecord(vendor, pid, result.promo, result.source);
+      this.logPanel.push(`${vendor} ${pid} 推广语已保存`, 'success');
+    } catch (error) {
+      this.logPanel.push(`保存推广语失败：${(error as Error).message}`, 'error');
+    } finally {
+      this.togglePromoButtons(false, saveBtn, regenBtn);
+    }
+  }
+
+  private async regeneratePromo(
+    vendor: string,
+    pid: string,
+    textarea: HTMLTextAreaElement,
+    display: HTMLElement,
+    hint: HTMLElement,
+    saveBtn: HTMLButtonElement,
+    regenBtn: HTMLButtonElement
+  ) {
+    this.togglePromoButtons(true, saveBtn, regenBtn);
+    try {
+      const result = await this.rest.refreshPromo(vendor, pid);
+      display.textContent = result.promo || '等待生成推广话术...';
+      textarea.value = result.promo || '';
+      hint.textContent = this.describePromoSource(result.source);
+      this.updatePromoRecord(vendor, pid, result.promo, result.source);
+      this.logPanel.push(`${vendor} ${pid} 推广语已重新生成`, 'success');
+    } catch (error) {
+      this.logPanel.push(`重新生成推广语失败：${(error as Error).message}`, 'error');
+    } finally {
+      this.togglePromoButtons(false, saveBtn, regenBtn);
+    }
+  }
+
+  private updatePromoRecord(vendor: string, pid: string, promo: string, source: string) {
+    const record = this.currentVps.find((item) => item.vendor === vendor && item.pid === pid);
+    if (record) {
+      record.promo = promo;
+      record.promo_source = source;
+    }
+  }
+
+  private formatPromo(item: VpsRecord) {
+    return item.promo || '等待生成推广话术...';
   }
 
   private createStatusPill(item: VpsRecord) {
@@ -510,6 +685,26 @@ export class ASVApp {
   private renderDiagnostics(result: DiagnosticsResult) {
     this.logPanel.push(`网络：${result.network.ok ? '正常' : '异常'} - ${result.network.message}`);
     this.logPanel.push(`LLM：${result.llm.ok ? '就绪' : '异常'} - ${result.llm.message}`);
+  }
+
+  private applyExtraCss(css: string) {
+    const trimmed = (css || '').trim();
+    if (!trimmed) {
+      if (this.extraCssNode) {
+        this.extraCssNode.remove();
+        this.extraCssNode = undefined;
+      }
+      return;
+    }
+
+    if (!this.extraCssNode) {
+      const style = document.createElement('style');
+      style.dataset.source = 'asv-extra-css';
+      document.head.appendChild(style);
+      this.extraCssNode = style;
+    }
+
+    this.extraCssNode.textContent = trimmed;
   }
 
   private randomDelay(min: number, max: number) {

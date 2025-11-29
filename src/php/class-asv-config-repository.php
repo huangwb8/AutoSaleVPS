@@ -9,10 +9,14 @@ require_once __DIR__ . '/class-asv-toml.php';
 
 if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 	class ASV_Config_Repository {
-		const OPTION_API_KEY      = 'autosalevps_api_key';
-		const OPTION_TIMEZONE     = 'autosalevps_timezone';
-		const OPTION_STATUSES     = 'autosalevps_statuses';
-		const OPTION_PROMO_CACHE  = 'autosalevps_promos';
+	const OPTION_API_KEY         = 'autosalevps_api_key';
+	const OPTION_TIMEZONE        = 'autosalevps_timezone';
+	const OPTION_STATUSES        = 'autosalevps_statuses';
+	const OPTION_PROMO_CACHE     = 'autosalevps_promos';
+	const OPTION_PROMO_OVERRIDES = 'autosalevps_promo_overrides';
+	const OPTION_EXTRA_CSS       = 'autosalevps_extra_css';
+	const OPTION_META_CACHE      = 'autosalevps_meta_cache';
+	const OPTION_META_OVERRIDES  = 'autosalevps_meta_overrides';
 		const DEFAULT_TIMEZONE    = 'Asia/Shanghai';
 
 		/**
@@ -258,18 +262,121 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		 *
 		 * @param array $statuses Status payload.
 		 */
-		public function save_statuses( $statuses ) {
-			update_option( self::OPTION_STATUSES, $statuses );
-		}
+	public function save_statuses( $statuses ) {
+		update_option( self::OPTION_STATUSES, $statuses );
+	}
 
 		/**
 		 * Get saved statuses.
 		 *
 		 * @return array
 		 */
-		public function get_statuses() {
-			$statuses = get_option( self::OPTION_STATUSES, array() );
-			return is_array( $statuses ) ? $statuses : array();
+	public function get_statuses() {
+		$statuses = get_option( self::OPTION_STATUSES, array() );
+		return is_array( $statuses ) ? $statuses : array();
+	}
+
+	/**
+	 * Save manual promo overrides.
+	 *
+	 * @param string $vendor  Vendor key.
+	 * @param string $pid     Product id.
+	 * @param string $content Promo text.
+	 */
+	public function save_promo_override( $vendor, $pid, $content ) {
+		$overrides = $this->get_promo_overrides();
+		$key       = $this->build_vps_key( $vendor, $pid );
+		$body      = trim( (string) $content );
+
+		if ( '' === $body ) {
+			if ( isset( $overrides[ $key ] ) ) {
+				unset( $overrides[ $key ] );
+			}
+		} else {
+			$overrides[ $key ] = $body;
+		}
+
+		update_option( self::OPTION_PROMO_OVERRIDES, $overrides );
+	}
+
+	/**
+	 * Fetch all promo overrides keyed by vendor-pid.
+	 *
+	 * @return array
+	 */
+	public function get_promo_overrides() {
+		$overrides = get_option( self::OPTION_PROMO_OVERRIDES, array() );
+		return is_array( $overrides ) ? $overrides : array();
+	}
+
+	/**
+	 * Fetch a single override.
+	 *
+	 * @param string $vendor Vendor.
+	 * @param string $pid    Pid.
+	 * @return string
+	 */
+	public function get_promo_override( $vendor, $pid ) {
+		$overrides = $this->get_promo_overrides();
+		$key       = $this->build_vps_key( $vendor, $pid );
+		return isset( $overrides[ $key ] ) ? (string) $overrides[ $key ] : '';
+	}
+
+	/**
+	 * Save manual meta overrides.
+	 *
+	 * @param string $vendor Vendor key.
+	 * @param string $pid    Product id.
+	 * @param string $content Meta body.
+	 */
+	public function save_meta_override( $vendor, $pid, $content ) {
+		$overrides = $this->get_meta_overrides();
+		$key       = $this->build_vps_key( $vendor, $pid );
+		$body      = trim( (string) $content );
+
+		if ( '' === $body ) {
+			if ( isset( $overrides[ $key ] ) ) {
+				unset( $overrides[ $key ] );
+			}
+		} else {
+			$overrides[ $key ] = $body;
+		}
+
+		update_option( self::OPTION_META_OVERRIDES, $overrides );
+	}
+
+	/**
+	 * Fetch meta overrides map.
+	 *
+	 * @return array
+	 */
+	public function get_meta_overrides() {
+		$overrides = get_option( self::OPTION_META_OVERRIDES, array() );
+		return is_array( $overrides ) ? $overrides : array();
+	}
+
+	/**
+	 * Fetch single meta override.
+	 *
+	 * @param string $vendor Vendor key.
+	 * @param string $pid    Product id.
+	 * @return string
+	 */
+	public function get_meta_override( $vendor, $pid ) {
+		$overrides = $this->get_meta_overrides();
+		$key       = $this->build_vps_key( $vendor, $pid );
+		return isset( $overrides[ $key ] ) ? (string) $overrides[ $key ] : '';
+	}
+
+		/**
+		 * Build consistent vendor-pid key.
+		 *
+		 * @param string $vendor Vendor key.
+		 * @param string $pid    Product id.
+		 * @return string
+		 */
+		protected function build_vps_key( $vendor, $pid ) {
+			return $vendor . '-' . $pid;
 		}
 
 		/**
@@ -286,9 +393,46 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		 *
 		 * @return array
 		 */
-		public function get_promo_cache() {
-			$data = get_option( self::OPTION_PROMO_CACHE, array() );
-			return is_array( $data ) ? $data : array();
+	public function get_promo_cache() {
+		$data = get_option( self::OPTION_PROMO_CACHE, array() );
+		return is_array( $data ) ? $data : array();
+	}
+
+	/**
+	 * Persist formatted meta cache.
+	 *
+	 * @param array $data Cache payload.
+	 */
+	public function save_meta_cache( $data ) {
+		update_option( self::OPTION_META_CACHE, $data );
+	}
+
+	/**
+	 * Fetch formatted meta cache.
+	 *
+	 * @return array
+	 */
+	public function get_meta_cache() {
+		$data = get_option( self::OPTION_META_CACHE, array() );
+		return is_array( $data ) ? $data : array();
+	}
+
+		/**
+		 * Fetch custom CSS.
+		 *
+		 * @return string
+		 */
+		public function get_extra_css() {
+			return (string) get_option( self::OPTION_EXTRA_CSS, '' );
+		}
+
+		/**
+		 * Save custom CSS.
+		 *
+		 * @param string $css Raw CSS.
+		 */
+		public function save_extra_css( $css ) {
+			update_option( self::OPTION_EXTRA_CSS, (string) $css );
 		}
 	}
 }
