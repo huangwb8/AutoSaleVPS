@@ -25,6 +25,8 @@ AutoSaleVPS.zip      # 运行 npm run package 后生成的安装包
 
 ## 使用教程
 
+> 具体见我的博客文章： [Docker系列 WordPress系列 AutoSaleVPS插件](https://blognas.hwb0307.com/linux/docker/6601)
+
 1. **获取安装包**
    - 下载仓库或直接使用我们提供的 `AutoSaleVPS.zip`。若你是开发者，可以运行 `npm run package` 生成最新 ZIP。
 
