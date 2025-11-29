@@ -154,6 +154,12 @@
   width: 100%;
 }
 
+.asv-root--admin .asv-vps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
 .asv-card {
   background: var(--asv-card);
   border: 1px solid var(--asv-border);

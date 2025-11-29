@@ -42,8 +42,13 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 		 * Bootstrap plugin.
 		 */
 		public function register() {
-			$config_path = plugin_dir_path( __FILE__ ) . 'config/config.toml';
-			$model_path  = plugin_dir_path( __FILE__ ) . 'config/model.toml';
+			$storage_dir = $this->prepare_storage_dir();
+			$defaults    = plugin_dir_path( __FILE__ ) . 'config/';
+			$config_path = trailingslashit( $storage_dir ) . 'config.toml';
+			$model_path  = trailingslashit( $storage_dir ) . 'model.toml';
+
+			$this->seed_default_file( $config_path, $defaults . 'config.toml' );
+			$this->seed_default_file( $model_path, $defaults . 'model.toml' );
 
 			$this->repository = new ASV_Config_Repository( $config_path, $model_path );
 
@@ -148,6 +153,35 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 					'extraCss'  => $this->repository->get_extra_css(),
 				)
 			);
+		}
+
+		/**
+		 * Ensure storage directory exists under uploads.
+		 *
+		 * @return string
+		 */
+		protected function prepare_storage_dir() {
+			$upload_dir = wp_upload_dir();
+			$base       = trailingslashit( $upload_dir['basedir'] ) . 'autosalevps';
+			wp_mkdir_p( $base );
+			return $base;
+		}
+
+		/**
+		 * Copy default file if target missing.
+		 *
+		 * @param string $target   Destination path.
+		 * @param string $fallback Default file path.
+		 */
+		protected function seed_default_file( $target, $fallback ) {
+			if ( file_exists( $target ) ) {
+				return;
+			}
+
+			if ( file_exists( $fallback ) ) {
+				wp_mkdir_p( dirname( $target ) );
+				copy( $fallback, $target );
+			}
 		}
 	}
 }

@@ -42,7 +42,8 @@ const MODEL_DEFAULT_TEMPLATE = `[model_providers]
 base_url = 'https://api.ohmygpt.com/v1'
 model = 'gpt-4.1-mini'
 prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
-prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'`;
+prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'
+prompt_meta_layout = '请将输入JSON整理成固定的8行中文，依次为：厂商、CPU、内存、存储、带宽、网络、价格、地理位置。每一行必须使用“字段：内容”格式，字段名需与上述完全一致，如信息缺失则填“-”，不要输出其他文字。'`;
 
 const EXTRA_CSS_TEMPLATE = `/* 适配 https://blognas.hwb0307.com/ad 的柔和卡片风格，可按需修改 */
 .asv-root {
