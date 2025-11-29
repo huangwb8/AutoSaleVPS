@@ -45,24 +45,30 @@ prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经�
 prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'
 prompt_meta_layout = '请将输入JSON整理成固定的8行中文，依次为：厂商、CPU、内存、存储、带宽、网络、价格、地理位置。每一行必须使用“字段：内容”格式，字段名需与上述完全一致，如信息缺失则填“-”，不要输出其他文字。'`;
 
-const EXTRA_CSS_TEMPLATE = `/* 适配 https://blognas.hwb0307.com/ad 的柔和卡片风格，可按需修改 */
+const EXTRA_CSS_TEMPLATE = `/* 适配 https://blognas.hwb0307.com/ad 的通透布局 */
 .asv-root {
-  box-shadow: none;
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 12px;
-  padding: 1.2rem;
+  padding: 0;
+  background: transparent;
 }
 
 .asv-card {
-  border-radius: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(226, 239, 255, 0.32));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 24px;
+  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(12px);
+}
+
+.asv-card--offline {
+  border-color: rgba(239, 79, 79, 0.5);
+  box-shadow: 0 35px 80px rgba(239, 79, 79, 0.4);
 }
 
 .asv-sale-btn {
-  border-radius: 6px;
-  background: #f97316;
+  background: linear-gradient(120deg, #ff9f5a, #f05438);
   color: #fff !important;
+  border: none;
+  box-shadow: 0 14px 30px rgba(240, 84, 56, 0.3);
 }`;
 
 interface BootstrapData {
@@ -116,11 +122,7 @@ export class ASVApp {
     this.mountLogPanel();
     this.attachTimezone();
     this.attachButtons();
-    if (this.bootstrap.isAdmin) {
-      this.renderAdminPlaceholder();
-    } else {
-      this.loadVpsCards();
-    }
+    this.loadVpsCards();
 
     if (this.bootstrap.isAdmin) {
       this.prepareModals();
@@ -415,20 +417,13 @@ export class ASVApp {
       this.currentVps = vps;
       this.renderVpsList(vps);
       if (this.bootstrap.isAdmin) {
+        this.logPanel.push('已载入历史 VPS 状态，如需更新请点击“查看VPS状态”', 'info');
         this.scheduleValidation();
       }
     } catch (error) {
       this.vpsContainer.innerHTML = '<p class="asv-error">无法获取VPS信息</p>';
       this.logPanel.push(`获取VPS失败：${(error as Error).message}`, 'error');
     }
-  }
-
-  private renderAdminPlaceholder() {
-    if (!this.bootstrap.isAdmin) {
-      return;
-    }
-
-    this.vpsContainer.innerHTML = '<div class="asv-loading">点击“查看VPS状态”后将加载VPS信息</div>';
   }
 
   private renderVpsList(vps: VpsRecord[]) {
@@ -803,17 +798,7 @@ export class ASVApp {
         pill.textContent = available ? '在线' : '已售罄';
         pill.className = `asv-status-pill ${available ? 'asv-status-pill--up' : 'asv-status-pill--down'}`;
       }
-      if (!available) {
-        let notice = card.querySelector('.asv-soldout') as HTMLElement | null;
-        if (!notice) {
-          notice = document.createElement('div');
-          notice.className = 'asv-soldout';
-          card.appendChild(notice);
-        }
-        notice.textContent = message || '该 VPS 暂不可用';
-      } else {
-        card.querySelector('.asv-soldout')?.remove();
-      }
+      card.querySelector('.asv-soldout')?.remove();
     }
 
     const match = this.currentVps.find((item) => item.vendor === vendor && item.pid === pid);

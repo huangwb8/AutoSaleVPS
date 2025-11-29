@@ -16,22 +16,15 @@
 }
 
 .asv-root {
-  background: linear-gradient(150deg, #fff8f0, #f5f7fb 45%, #edf2ff);
-  border-radius: 20px;
-  padding: clamp(1.5rem, 2vw, 2.75rem);
+  padding: 0;
+  margin: 0;
   color: var(--asv-text);
-  box-shadow: var(--asv-shadow);
-  position: relative;
-  overflow: hidden;
+  background: transparent;
+  box-shadow: none;
 }
 
 .asv-root::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.18), transparent 45%),
-    radial-gradient(circle at 80% 0%, rgba(52, 211, 153, 0.18), transparent 40%);
-  pointer-events: none;
+  content: none;
 }
 
 .asv-root > * {
@@ -41,6 +34,8 @@
 
 .asv-root--admin {
   max-width: 1100px;
+  margin: 0 auto;
+  padding: clamp(1rem, 2vw, 2rem);
 }
 
 .asv-loading,
@@ -174,22 +169,38 @@
 }
 
 .asv-card {
-  background: var(--asv-card);
-  border: 1px solid var(--asv-border);
-  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(226, 239, 255, 0.32));
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 24px;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(12px);
+  background-clip: padding-box;
   animation: asvFade 0.5s ease;
 }
 
+.asv-card::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 23px;
+  background: linear-gradient(165deg, rgba(255, 248, 240, 0.35), rgba(210, 229, 255, 0.3));
+  z-index: 0;
+}
+
+.asv-card > * {
+  position: relative;
+  z-index: 1;
+}
+
 .asv-card--offline {
-  border-color: var(--asv-error);
-  box-shadow: 0 15px 35px rgba(239, 79, 79, 0.2);
+  border-color: rgba(239, 79, 79, 0.5);
+  box-shadow: 0 35px 80px rgba(239, 79, 79, 0.4);
 }
 
 .asv-card__title {
@@ -345,16 +356,6 @@
 
 .asv-status-pill--down {
   border-color: var(--asv-error);
-  color: var(--asv-error);
-}
-
-.asv-soldout {
-  position: absolute;
-  inset: auto 1rem 1rem 1rem;
-  background: rgba(255, 77, 77, 0.12);
-  padding: 0.6rem 1rem;
-  border-radius: 0.8rem;
-  font-size: 0.9rem;
   color: var(--asv-error);
 }
 
