@@ -177,9 +177,9 @@
     --asv-visitor-card-border: rgba(148, 163, 184, 0.25);
     --asv-visitor-card-overlay: radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.12), transparent 55%), radial-gradient(circle at 80% 15%, rgba(249, 115, 22, 0.25), transparent 40%);
     --asv-visitor-card-shadow: 0 40px 80px rgba(3, 6, 18, 0.75);
-    --asv-sale-btn-gradient: linear-gradient(120deg, #fdbc66, #f97316);
-    --asv-sale-btn-shadow: 0 12px 35px rgba(249, 115, 22, 0.45);
-    --asv-sale-btn-color: #1a130a;
+    --asv-sale-btn-gradient: linear-gradient(115deg, #34d399, #059669);
+    --asv-sale-btn-shadow: 0 12px 30px rgba(34, 197, 94, 0.45);
+    --asv-sale-btn-color: #032012;
   }
 
   .asv-root:not(.asv-root--admin) .asv-card__promo {
