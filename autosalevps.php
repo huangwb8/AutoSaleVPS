@@ -3,7 +3,7 @@
  * Plugin Name: AutoSaleVPS
  * Description: 基于 LLM 的 VPS 推广助手，提供配置管理、可用性校验与前端展示。
  * Version: 0.1.0
- * Author: AutoSale Team
+ * Author: Bensz Conan
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

@@ -12,6 +12,13 @@
   --asv-error: #ef4f4f;
   --asv-success: #16a34a;
   --asv-shadow: 0 25px 60px rgba(15, 23, 42, 0.18);
+  --asv-visitor-card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(226, 239, 255, 0.32));
+  --asv-visitor-card-border: rgba(255, 255, 255, 0.25);
+  --asv-visitor-card-overlay: linear-gradient(165deg, rgba(255, 248, 240, 0.35), rgba(210, 229, 255, 0.3));
+  --asv-visitor-card-shadow: 0 35px 80px rgba(15, 23, 42, 0.25);
+  --asv-sale-btn-gradient: linear-gradient(120deg, var(--asv-accent), var(--asv-accent-strong));
+  --asv-sale-btn-shadow: 0 12px 24px rgba(240, 84, 56, 0.25);
+  --asv-sale-btn-color: #fff;
   font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft Yahei', system-ui, sans-serif;
 }
 
@@ -158,6 +165,38 @@
   gap: 1.25rem;
 }
 
+@media (prefers-color-scheme: dark) {
+  .asv-root:not(.asv-root--admin) {
+    --asv-bg: #050915;
+    --asv-panel: #0f172a;
+    --asv-text: #f8fafc;
+    --asv-muted: #9ba6c5;
+    --asv-border: rgba(148, 163, 184, 0.25);
+    --asv-border-strong: rgba(148, 163, 184, 0.45);
+    --asv-visitor-card-bg: linear-gradient(145deg, rgba(15, 23, 42, 0.92), rgba(26, 33, 68, 0.85));
+    --asv-visitor-card-border: rgba(148, 163, 184, 0.25);
+    --asv-visitor-card-overlay: radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.12), transparent 55%), radial-gradient(circle at 80% 15%, rgba(249, 115, 22, 0.25), transparent 40%);
+    --asv-visitor-card-shadow: 0 40px 80px rgba(3, 6, 18, 0.75);
+    --asv-sale-btn-gradient: linear-gradient(120deg, #fdbc66, #f97316);
+    --asv-sale-btn-shadow: 0 12px 35px rgba(249, 115, 22, 0.45);
+    --asv-sale-btn-color: #1a130a;
+  }
+
+  .asv-root:not(.asv-root--admin) .asv-card__promo {
+    color: var(--asv-text);
+  }
+
+  .asv-root:not(.asv-root--admin) .asv-card__note {
+    background: rgba(249, 115, 22, 0.2);
+    border-color: rgba(249, 115, 22, 0.35);
+    color: #ffd9bd;
+  }
+
+  .asv-root:not(.asv-root--admin) .asv-status-pill {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
 .asv-root:not(.asv-root--admin) .asv-card {
   width: 100%;
 }
@@ -169,8 +208,8 @@
 }
 
 .asv-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(226, 239, 255, 0.32));
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--asv-visitor-card-bg);
+  border: 1px solid var(--asv-visitor-card-border);
   border-radius: 24px;
   padding: 1.5rem;
   display: flex;
@@ -178,7 +217,7 @@
   gap: 0.75rem;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 35px 80px rgba(15, 23, 42, 0.25);
+  box-shadow: var(--asv-visitor-card-shadow);
   backdrop-filter: blur(12px);
   background-clip: padding-box;
   animation: asvFade 0.5s ease;
@@ -189,7 +228,7 @@
   position: absolute;
   inset: 1px;
   border-radius: 23px;
-  background: linear-gradient(165deg, rgba(255, 248, 240, 0.35), rgba(210, 229, 255, 0.3));
+  background: var(--asv-visitor-card-overlay);
   z-index: 0;
 }
 
@@ -226,9 +265,9 @@
   padding: 0.6rem 1.6rem;
   border: none;
   font-weight: 600;
-  color: #fff;
-  background: linear-gradient(120deg, var(--asv-accent), var(--asv-accent-strong));
-  box-shadow: 0 12px 24px rgba(240, 84, 56, 0.25);
+  color: var(--asv-sale-btn-color);
+  background: var(--asv-sale-btn-gradient);
+  box-shadow: var(--asv-sale-btn-shadow);
   align-self: flex-start;
   min-width: 180px;
   max-width: 100%;
