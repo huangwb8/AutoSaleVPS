@@ -1,0 +1,24 @@
+{
+  "name": "autosalevps/plugin",
+  "type": "wordpress-plugin",
+  "require": {
+    "yosymfony/toml": "^1.0"
+  },
+  "require-dev": {
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "phpcompatibility/php-compatibility": "^9.3",
+    "squizlabs/php_codesniffer": "^3.7"
+  },
+  "autoload": {
+    "psr-4": {
+      "AutoSaleVPS\\": "src/php/"
+    }
+  },
+  "scripts": {
+    "lint": [
+      "phpcs --standard=WordPress --ignore=vendor"
+    ]
+  },
+  "minimum-stability": "stable",
+  "license": "proprietary"
+}

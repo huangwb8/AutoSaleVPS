@@ -1,0 +1,284 @@
+:root {
+  --asv-bg: #081421;
+  --asv-card: rgba(255, 255, 255, 0.05);
+  --asv-border: rgba(255, 255, 255, 0.1);
+  --asv-accent: #ff7a18;
+  --asv-accent-soft: #ffa55a;
+  --asv-text: #f4f7ff;
+  --asv-muted: rgba(244, 247, 255, 0.6);
+  --asv-error: #ff4d4d;
+  --asv-success: #21d19f;
+  font-family: 'Space Grotesk', 'PingFang SC', 'Microsoft Yahei', sans-serif;
+}
+
+.asv-root {
+  background: radial-gradient(circle at top left, rgba(255, 122, 24, 0.15), transparent 50%),
+    radial-gradient(circle at bottom right, rgba(33, 209, 159, 0.15), transparent 50%),
+    var(--asv-bg);
+  padding: 2rem;
+  border-radius: 1.2rem;
+  color: var(--asv-text);
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.4);
+}
+
+.asv-loading,
+.asv-error {
+  text-align: center;
+  padding: 2rem;
+  color: var(--asv-muted);
+}
+
+.asv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.asv-actions {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.asv-viewer-note {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--asv-muted);
+}
+
+.asv-btn {
+  border: 1px solid var(--asv-border);
+  background: transparent;
+  color: var(--asv-text);
+  padding: 0.55rem 1.5rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.asv-btn:hover {
+  background: var(--asv-accent);
+  border-color: var(--asv-accent);
+}
+
+.asv-btn--ghost {
+  border-color: var(--asv-accent-soft);
+  color: var(--asv-accent-soft);
+}
+
+.asv-timezone label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  color: var(--asv-muted);
+}
+
+.asv-timezone select {
+  margin-top: 0.2rem;
+  background: transparent;
+  border: 1px solid var(--asv-border);
+  color: var(--asv-text);
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.asv-vps-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.2rem;
+}
+
+.asv-card {
+  background: var(--asv-card);
+  border: 1px solid var(--asv-border);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.asv-card--offline {
+  border-color: var(--asv-error);
+}
+
+.asv-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.asv-sale-link {
+  color: var(--asv-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.asv-card__tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--asv-border);
+  border-radius: 999px;
+  padding: 0.1rem 0.65rem;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--asv-muted);
+}
+
+.asv-card__promo {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--asv-text);
+}
+
+.asv-card__meta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--asv-muted);
+}
+
+.asv-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  color: var(--asv-muted);
+}
+
+.asv-status-pill {
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid var(--asv-border);
+}
+
+.asv-status-pill--idle {
+  border-color: var(--asv-border);
+  color: var(--asv-muted);
+}
+
+.asv-status-pill--up {
+  border-color: var(--asv-success);
+  color: var(--asv-success);
+}
+
+.asv-status-pill--down {
+  border-color: var(--asv-error);
+  color: var(--asv-error);
+}
+
+.asv-soldout {
+  position: absolute;
+  inset: auto 1rem 1rem 1rem;
+  background: rgba(255, 77, 77, 0.12);
+  padding: 0.6rem 1rem;
+  border-radius: 0.8rem;
+  font-size: 0.9rem;
+  color: var(--asv-error);
+}
+
+.asv-log-panel {
+  margin-top: 2rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px dashed var(--asv-border);
+  border-radius: 1rem;
+  padding: 1rem;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+}
+
+.asv-log-row {
+  margin-bottom: 0.5rem;
+  color: var(--asv-muted);
+}
+
+.asv-log-success {
+  color: var(--asv-success);
+}
+
+.asv-log-error {
+  color: var(--asv-error);
+}
+
+.asv-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 10, 17, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+}
+
+.asv-modal.hidden {
+  display: none;
+}
+
+.asv-modal__body {
+  background: #09172b;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  min-width: min(90vw, 640px);
+  border: 1px solid var(--asv-border);
+}
+
+.asv-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.asv-modal__close {
+  border: none;
+  background: transparent;
+  color: var(--asv-text);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.asv-textarea,
+.asv-input {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid var(--asv-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--asv-text);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  font-family: inherit;
+}
+
+.asv-eye {
+  border: 1px solid var(--asv-border);
+  background: transparent;
+  color: var(--asv-text);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .asv-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .asv-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

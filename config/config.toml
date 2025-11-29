@@ -1,0 +1,31 @@
+[aff]
+[aff.rn]
+code = '4886'
+
+[url]
+[url.rn]
+sale_format = 'https://my.racknerd.com/aff.php?aff={aff}&pid={pid}'
+valid_format = 'https://my.racknerd.com/cart.php?a=add&pid={pid}'
+valid_interval_time = '172800'
+valid_vps_time = '5-10'
+
+[vps]
+[vps.rn.923]
+pid = '923'
+human_comment = '非常基础的一款VPS，但是容量相对来说还是比较大的。'
+
+[vps.rn.924]
+pid = '924'
+human_comment = ''
+
+[vps.rn.925]
+pid = '925'
+human_comment = ''
+
+[vps.rn.926]
+pid = '926'
+human_comment = ''
+
+[vps.rn.927]
+pid = '927'
+human_comment = ''
