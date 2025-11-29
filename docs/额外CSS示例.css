@@ -1,0 +1,45 @@
+/* 白天：保持 BlogNAS 正常主题的暖色按钮 */
+.asv-root .asv-sale-btn {
+  background: linear-gradient(110deg, #ffe1b2, #ffb45c);
+  color: #4c1d06;
+  border: 1px solid rgba(255, 180, 92, 0.65);
+  box-shadow: 0 14px 30px rgba(255, 180, 92, 0.35);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* 夜间：针对 BlogNAS 的夜间模式开关和常见暗色标记，同时兜底系统暗色偏好 */
+body.dark-mode .asv-root .asv-sale-btn,
+body.night-mode .asv-root .asv-sale-btn,
+body[data-theme='dark'] .asv-root .asv-sale-btn {
+  background: linear-gradient(125deg, #34d399, #0f9d58);
+  color: #032818;
+  border: 1px solid rgba(52, 211, 153, 0.8);
+  box-shadow: 0 16px 32px rgba(15, 157, 88, 0.4);
+  text-shadow: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  body:not(.dark-mode):not(.night-mode):not([data-theme='dark']) .asv-root .asv-sale-btn {
+    background: linear-gradient(125deg, #34d399, #0f9d58);
+    color: #032818;
+    border: 1px solid rgba(52, 211, 153, 0.8);
+    box-shadow: 0 16px 32px rgba(15, 157, 88, 0.4);
+    text-shadow: none;
+  }
+}
+
+/* 悬停/按下的细节，两种模式都共用 */
+.asv-root .asv-sale-btn:hover {
+  transform: translateY(-2px) scale(1.01);
+  filter: brightness(1.02);
+}
+.asv-root .asv-sale-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+
+/* VPS 信息代码框高度 +30%（默认 140px -> 182px），访客视图与后台编辑共用 */
+.asv-root .asv-meta-section .asv-meta-block,
+.asv-root .asv-meta-editor__textarea.asv-meta-block {
+  min-height: 182px;
+}
