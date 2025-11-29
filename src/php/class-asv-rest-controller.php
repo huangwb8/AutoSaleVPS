@@ -481,6 +481,7 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 
 			$model = $this->repository->get_model();
 			$meta  = $this->parser->extract_meta( $definition['sale_url'] );
+			$promo = null;
 
 			if ( null !== $content ) {
 				$body = sanitize_textarea_field( wp_unslash( (string) $content ) );
@@ -489,18 +490,21 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 				}
 
 				$promo = $this->promo->save_manual_promo( $definition, $meta, $body );
-				return rest_ensure_response( array(
-					'promo'  => $promo['content'],
-					'source' => $promo['source'],
-				) );
+			} else {
+				$this->promo->clear_manual_promo( $definition, $meta );
+				$promo = $this->promo->get_promo( $definition, $model, $meta );
 			}
 
-			$this->promo->clear_manual_promo( $definition, $meta );
-			$promo = $this->promo->get_promo( $definition, $model, $meta );
+			$this->repository->update_vps_snapshot_promo(
+				$vendor,
+				$pid,
+				isset( $promo['content'] ) ? $promo['content'] : '',
+				isset( $promo['source'] ) ? $promo['source'] : ''
+			);
 
 			return rest_ensure_response( array(
-				'promo'  => $promo['content'],
-				'source' => $promo['source'],
+				'promo'  => isset( $promo['content'] ) ? $promo['content'] : '',
+				'source' => isset( $promo['source'] ) ? $promo['source'] : '',
 			) );
 		}
 
@@ -534,6 +538,13 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			} else {
 				$result = $this->meta->regenerate_meta( $definition, $model, $meta );
 			}
+
+			$this->repository->update_vps_snapshot_meta(
+				$vendor,
+				$pid,
+				isset( $result['content'] ) ? $result['content'] : '',
+				isset( $result['source'] ) ? $result['source'] : ''
+			);
 
 			return rest_ensure_response( array(
 				'content' => $result['content'],

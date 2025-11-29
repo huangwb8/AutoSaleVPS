@@ -459,6 +459,73 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		$this->save_vps_snapshot( $snapshot );
 	}
 
+	/**
+	 * Update arbitrary snapshot fields for a VPS.
+	 *
+	 * @param string $vendor Vendor key.
+	 * @param string $pid    Product id.
+	 * @param array  $fields Field map.
+	 */
+	public function update_vps_snapshot_fields( $vendor, $pid, $fields ) {
+		if ( empty( $fields ) || ! is_array( $fields ) ) {
+			return;
+		}
+
+		$snapshot = $this->get_vps_snapshot();
+		$changed  = false;
+		foreach ( $snapshot as &$entry ) {
+			if ( isset( $entry['vendor'], $entry['pid'] ) && $entry['vendor'] === $vendor && $entry['pid'] === $pid ) {
+				foreach ( $fields as $key => $value ) {
+					$entry[ $key ] = $value;
+				}
+				$changed = true;
+				break;
+			}
+		}
+
+		if ( $changed ) {
+			$this->save_vps_snapshot( $snapshot );
+		}
+	}
+
+	/**
+	 * Update cached promo content for a VPS.
+	 *
+	 * @param string $vendor Vendor key.
+	 * @param string $pid    Product id.
+	 * @param string $promo  Promo text.
+	 * @param string $source Promo source.
+	 */
+	public function update_vps_snapshot_promo( $vendor, $pid, $promo, $source ) {
+		$this->update_vps_snapshot_fields(
+			$vendor,
+			$pid,
+			array(
+				'promo'        => $promo,
+				'promo_source' => $source,
+			)
+		);
+	}
+
+	/**
+	 * Update cached meta display for a VPS.
+	 *
+	 * @param string $vendor Vendor key.
+	 * @param string $pid    Product id.
+	 * @param string $meta   Meta display.
+	 * @param string $source Meta source.
+	 */
+	public function update_vps_snapshot_meta( $vendor, $pid, $meta, $source ) {
+		$this->update_vps_snapshot_fields(
+			$vendor,
+			$pid,
+			array(
+				'meta_display' => $meta,
+				'meta_source'  => $source,
+			)
+		);
+	}
+
 		/**
 		 * Fetch custom CSS.
 		 *
