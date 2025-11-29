@@ -122,7 +122,7 @@ export class ASVApp {
     this.mountLogPanel();
     this.attachTimezone();
     this.attachButtons();
-    this.loadVpsCards();
+    this.loadVpsCards(true);
 
     if (this.bootstrap.isAdmin) {
       this.prepareModals();
@@ -278,7 +278,7 @@ export class ASVApp {
       return;
     }
 
-    await this.loadVpsCards();
+    await this.loadVpsCards(false);
     this.triggerAvailabilitySweep('手动查看VPS状态');
   }
 
@@ -410,14 +410,18 @@ export class ASVApp {
     }
   }
 
-  private async loadVpsCards() {
-    this.vpsContainer.innerHTML = '<div class="asv-loading">正在抓取VPS数据...</div>';
+  private async loadVpsCards(useCache = true) {
+    this.vpsContainer.innerHTML = '<div class="asv-loading">正在载入VPS数据...</div>';
     try {
-      const { vps } = await this.rest.fetchVps();
+      const { vps } = useCache ? await this.rest.fetchCachedVps() : await this.rest.fetchVps();
       this.currentVps = vps;
       this.renderVpsList(vps);
       if (this.bootstrap.isAdmin) {
-        this.logPanel.push('已载入历史 VPS 状态，如需更新请点击“查看VPS状态”', 'info');
+        if (useCache) {
+          this.logPanel.push('已载入缓存的 VPS 状态，如需更新请点击“查看VPS状态”', 'info');
+        } else {
+          this.logPanel.push('已抓取最新 VPS 数据', 'success');
+        }
         this.scheduleValidation();
       }
     } catch (error) {
@@ -534,11 +538,6 @@ export class ASVApp {
     pre.className = 'asv-meta-block';
     pre.textContent = this.formatMetaDisplay(item);
     container.appendChild(pre);
-
-    const hint = document.createElement('div');
-    hint.className = 'asv-meta-hint';
-    hint.textContent = describeMetaSource(item.meta_source);
-    container.appendChild(hint);
 
     return container;
   }

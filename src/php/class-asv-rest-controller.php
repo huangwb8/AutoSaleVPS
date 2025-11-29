@@ -161,6 +161,16 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 				array(
 					'methods'  => WP_REST_Server::READABLE,
 					'callback' => array( $this, 'get_vps_collection' ),
+					'permission_callback' => array( $this, 'can_manage' ),
+				)
+			);
+
+			register_rest_route(
+				self::NAMESPACE_SLUG,
+				'/vps/cached',
+				array(
+					'methods'  => WP_REST_Server::READABLE,
+					'callback' => array( $this, 'get_cached_vps' ),
 					'permission_callback' => '__return_true',
 				)
 			);
@@ -389,9 +399,33 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 				);
 			}
 
+			$this->repository->save_vps_snapshot( $vps );
+
 			return rest_ensure_response(
 				array(
 					'vps' => $vps,
+				)
+			);
+		}
+
+		/**
+		 * Return cached VPS snapshot without remote fetch.
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function get_cached_vps() {
+			$snapshot = $this->repository->get_vps_snapshot();
+			if ( empty( $snapshot ) ) {
+				if ( current_user_can( 'manage_options' ) ) {
+					return $this->get_vps_collection();
+				}
+
+				return rest_ensure_response( array( 'vps' => array() ) );
+			}
+
+			return rest_ensure_response(
+				array(
+					'vps' => $snapshot,
 				)
 			);
 		}
@@ -423,6 +457,7 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 				'message'   => $result['message'],
 			);
 			$this->repository->save_statuses( $statuses );
+			$this->repository->update_vps_snapshot_status( $vendor, $pid, $result['available'], $result['message'], $statuses[ $key ]['checked_at'] );
 
 			return rest_ensure_response( $statuses[ $key ] );
 		}

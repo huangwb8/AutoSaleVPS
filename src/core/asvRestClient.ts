@@ -86,6 +86,10 @@ export class ASVRestClient {
     return this.request('/vps');
   }
 
+  fetchCachedVps(): Promise<{ vps: VpsRecord[] }> {
+    return this.request('/vps/cached');
+  }
+
   validateVps(vendor: string, pid: string) {
     return this.request('/vps/validate', {
       method: 'POST',

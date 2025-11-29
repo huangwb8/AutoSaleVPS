@@ -17,6 +17,7 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 	const OPTION_EXTRA_CSS       = 'autosalevps_extra_css';
 	const OPTION_META_CACHE      = 'autosalevps_meta_cache';
 	const OPTION_META_OVERRIDES  = 'autosalevps_meta_overrides';
+	const OPTION_VPS_SNAPSHOT    = 'autosalevps_vps_snapshot';
 		const DEFAULT_TIMEZONE    = 'Asia/Shanghai';
 
 		/**
@@ -415,6 +416,47 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 	public function get_meta_cache() {
 		$data = get_option( self::OPTION_META_CACHE, array() );
 		return is_array( $data ) ? $data : array();
+	}
+
+	/**
+	 * Persist latest VPS snapshot.
+	 *
+	 * @param array $data Snapshot payload.
+	 */
+	public function save_vps_snapshot( $data ) {
+		update_option( self::OPTION_VPS_SNAPSHOT, $data );
+	}
+
+	/**
+	 * Retrieve cached VPS snapshot.
+	 *
+	 * @return array
+	 */
+	public function get_vps_snapshot() {
+		$data = get_option( self::OPTION_VPS_SNAPSHOT, array() );
+		return is_array( $data ) ? $data : array();
+	}
+
+	/**
+	 * Update snapshot availability for a VPS.
+	 *
+	 * @param string  $vendor    Vendor key.
+	 * @param string  $pid       Product id.
+	 * @param boolean $available Availability.
+	 * @param string  $message   Status message.
+	 * @param int     $checked   Timestamp.
+	 */
+	public function update_vps_snapshot_status( $vendor, $pid, $available, $message, $checked ) {
+		$snapshot = $this->get_vps_snapshot();
+		foreach ( $snapshot as &$entry ) {
+			if ( isset( $entry['vendor'], $entry['pid'] ) && $entry['vendor'] === $vendor && $entry['pid'] === $pid ) {
+				$entry['available'] = $available;
+				$entry['message']   = $message;
+				$entry['checked_at'] = $checked;
+				break;
+			}
+		}
+		$this->save_vps_snapshot( $snapshot );
 	}
 
 		/**
