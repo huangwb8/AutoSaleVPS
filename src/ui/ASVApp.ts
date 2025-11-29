@@ -116,7 +116,11 @@ export class ASVApp {
     this.mountLogPanel();
     this.attachTimezone();
     this.attachButtons();
-    this.loadVpsCards();
+    if (this.bootstrap.isAdmin) {
+      this.renderAdminPlaceholder();
+    } else {
+      this.loadVpsCards();
+    }
 
     if (this.bootstrap.isAdmin) {
       this.prepareModals();
@@ -140,8 +144,13 @@ export class ASVApp {
       const toolbar = document.createElement('div');
       toolbar.className = 'asv-toolbar';
 
+      const primaryRow = document.createElement('div');
+      primaryRow.className = 'asv-toolbar__row';
+
       const actions = document.createElement('div');
       actions.className = 'asv-actions';
+      const secondaryActions = document.createElement('div');
+      secondaryActions.className = 'asv-actions asv-actions--secondary';
 
       const editConfigBtn = this.createButton('编辑VPS配置');
       editConfigBtn.dataset.action = 'edit-config';
@@ -151,11 +160,12 @@ export class ASVApp {
       addKeyBtn.dataset.action = 'add-key';
       const cssBtn = this.createButton('额外CSS');
       cssBtn.dataset.action = 'edit-css';
-      const statusBtn = this.createButton('查看VPS状态');
-      statusBtn.dataset.action = 'check-vps';
       const checkBtn = this.createButton('检查可用性');
       checkBtn.dataset.action = 'diagnostics';
-      actions.append(editConfigBtn, editModelBtn, addKeyBtn, cssBtn, statusBtn, checkBtn);
+      const statusBtn = this.createButton('查看VPS状态');
+      statusBtn.dataset.action = 'check-vps';
+      actions.append(editConfigBtn, editModelBtn, addKeyBtn, cssBtn);
+      secondaryActions.append(checkBtn, statusBtn);
 
       const timezoneWrap = document.createElement('div');
       timezoneWrap.className = 'asv-timezone';
@@ -175,7 +185,8 @@ export class ASVApp {
       label.appendChild(select);
       timezoneWrap.appendChild(label);
 
-      toolbar.append(actions, timezoneWrap);
+      primaryRow.append(actions, timezoneWrap);
+      toolbar.append(primaryRow, secondaryActions);
       this.root.appendChild(toolbar);
     }
 
@@ -286,6 +297,7 @@ export class ASVApp {
       try {
         await this.rest.saveModel(this.modelBundle.textarea.value);
         this.logPanel.push('模型配置已保存', 'success');
+        this.modelBundle.modal.hide();
       } catch (error) {
         this.logPanel.push(`保存模型失败：${(error as Error).message}`, 'error');
       }
@@ -411,6 +423,14 @@ export class ASVApp {
     }
   }
 
+  private renderAdminPlaceholder() {
+    if (!this.bootstrap.isAdmin) {
+      return;
+    }
+
+    this.vpsContainer.innerHTML = '<div class="asv-loading">点击“查看VPS状态”后将加载VPS信息</div>';
+  }
+
   private renderVpsList(vps: VpsRecord[]) {
     this.vpsContainer.innerHTML = '';
     if (!vps.length) {
@@ -441,13 +461,13 @@ export class ASVApp {
       saleBtn.textContent = '打开推广链接';
       card.appendChild(saleBtn);
 
-      const promo = document.createElement('p');
-      promo.className = 'asv-card__promo';
-      promo.textContent = this.formatPromo(item);
-      card.appendChild(promo);
-
-      if (this.bootstrap.isAdmin) {
-        card.appendChild(this.createPromoEditor(item, promo));
+      if (!this.bootstrap.isAdmin) {
+        const promo = document.createElement('p');
+        promo.className = 'asv-card__promo';
+        promo.textContent = this.formatPromo(item);
+        card.appendChild(promo);
+      } else {
+        card.appendChild(this.createPromoEditor(item));
       }
 
       if (this.bootstrap.isAdmin) {
@@ -479,7 +499,7 @@ export class ASVApp {
     });
   }
 
-  private createPromoEditor(item: VpsRecord, display: HTMLElement) {
+  private createPromoEditor(item: VpsRecord) {
     const editor = document.createElement('div');
     editor.className = 'asv-promo-editor';
 
@@ -488,11 +508,6 @@ export class ASVApp {
     textarea.value = item.promo || '';
     textarea.placeholder = '输入自定义推广语，20-100 字，保持真实配置。';
     editor.appendChild(textarea);
-
-    const hint = document.createElement('div');
-    hint.className = 'asv-promo-hint';
-    hint.textContent = this.describePromoSource(item.promo_source);
-    editor.appendChild(hint);
 
     const actions = document.createElement('div');
     actions.className = 'asv-promo-actions';
@@ -504,10 +519,10 @@ export class ASVApp {
     regenBtn.classList.add('asv-btn--ghost', 'asv-btn--sm');
 
     saveBtn.addEventListener('click', () =>
-      this.persistPromoOverride(item.vendor, item.pid, textarea, display, hint, saveBtn, regenBtn)
+      this.persistPromoOverride(item.vendor, item.pid, textarea, saveBtn, regenBtn)
     );
     regenBtn.addEventListener('click', () =>
-      this.regeneratePromo(item.vendor, item.pid, textarea, display, hint, saveBtn, regenBtn)
+      this.regeneratePromo(item.vendor, item.pid, textarea, saveBtn, regenBtn)
     );
 
     actions.append(saveBtn, regenBtn);
@@ -571,16 +586,6 @@ export class ASVApp {
     return container;
   }
 
-  private describePromoSource(source?: string) {
-    if (source === 'manual') {
-      return '当前为管理员自定义内容';
-    }
-    if (source === 'llm') {
-      return 'AI 基于 prompt_vps_info 自动生成';
-    }
-    return '未检测到 AI 结果，将展示默认描述';
-  }
-
   private formatMetaDisplay(item: VpsRecord) {
     return buildMetaDisplay(item.meta_display, item.meta || []);
   }
@@ -601,8 +606,6 @@ export class ASVApp {
     vendor: string,
     pid: string,
     textarea: HTMLTextAreaElement,
-    display: HTMLElement,
-    hint: HTMLElement,
     saveBtn: HTMLButtonElement,
     regenBtn: HTMLButtonElement
   ) {
@@ -616,9 +619,7 @@ export class ASVApp {
     this.togglePromoButtons(true, saveBtn, regenBtn);
     try {
       const result = await this.rest.savePromo(vendor, pid, value);
-      display.textContent = result.promo || '等待生成推广话术...';
       textarea.value = result.promo || '';
-      hint.textContent = this.describePromoSource(result.source);
       this.updatePromoRecord(vendor, pid, result.promo, result.source);
       this.logPanel.push(`${vendor} ${pid} 推广语已保存`, 'success');
     } catch (error) {
@@ -685,17 +686,13 @@ export class ASVApp {
     vendor: string,
     pid: string,
     textarea: HTMLTextAreaElement,
-    display: HTMLElement,
-    hint: HTMLElement,
     saveBtn: HTMLButtonElement,
     regenBtn: HTMLButtonElement
   ) {
     this.togglePromoButtons(true, saveBtn, regenBtn);
     try {
       const result = await this.rest.refreshPromo(vendor, pid);
-      display.textContent = result.promo || '等待生成推广话术...';
       textarea.value = result.promo || '';
-      hint.textContent = this.describePromoSource(result.source);
       this.updatePromoRecord(vendor, pid, result.promo, result.source);
       this.logPanel.push(`${vendor} ${pid} 推广语已重新生成`, 'success');
     } catch (error) {
