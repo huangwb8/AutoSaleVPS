@@ -103,6 +103,10 @@ human_comment = '2025年黑色星期五活动。小土豪专属。是一款相�
 pid = '927'
 human_comment = '2025年黑色星期五活动。大土豪专属。不差钱的就上吧。'
 
+[vps.rn.697]
+pid = '697'
+human_comment = '和2025年黑五机型相比没有优势。不推荐。'
+
 [vps.rn.199]
 pid = '199'
 human_comment = '博主的主力机器，目前已经停售了。'
