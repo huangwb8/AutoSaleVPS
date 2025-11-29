@@ -159,7 +159,7 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			);
 
 			register_rest_route(
-				self::NAMESPACE,
+				self::NAMESPACE_SLUG,
 				'/diagnostics',
 				array(
 					'methods'  => WP_REST_Server::CREATABLE,

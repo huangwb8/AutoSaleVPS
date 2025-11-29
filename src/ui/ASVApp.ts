@@ -4,6 +4,44 @@ import { ASVConfig } from '../core/asvConfig';
 import { ASVModal } from './ASVModal';
 import { ASVLogPanel } from './ASVLogPanel';
 
+const CONFIG_DEFAULT_TEMPLATE = `[aff]
+[aff.rn]
+4886
+
+[url]
+[url.rn]
+sale_format = 'https://my.racknerd.com/aff.php?aff={aff}&pid={pid}'
+valid_format = 'https://my.racknerd.com/cart.php?a=add&pid={pid}'
+valid_interval_time = '172800'
+valid_vps_time = '5-10'
+
+[vps]
+[vps.rn.923]
+pid = '923'
+human_comment = '非常基础的一款VPS，但是容量相对来说还是比较大的。'
+
+[vps.rn.924]
+pid = '924'
+human_comment = ''
+
+[vps.rn.925]
+pid = '925'
+human_comment = ''
+
+[vps.rn.926]
+pid = '926'
+human_comment = ''
+
+[vps.rn.927]
+pid = '927'
+human_comment = ''`;
+
+const MODEL_DEFAULT_TEMPLATE = `[model_providers]
+[model_providers.omg]
+base_url = 'https://api.ohmygpt.com/v1'
+prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
+prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'`;
+
 interface BootstrapData {
   restUrl: string;
   nonce: string;
@@ -172,7 +210,7 @@ export class ASVApp {
   }
 
   private prepareModals() {
-    this.configBundle = this.createEditorModal('编辑 config.toml', async () => {
+    this.configBundle = this.createEditorModal('编辑 config.toml', CONFIG_DEFAULT_TEMPLATE, async () => {
       try {
         await this.rest.saveConfig(this.configBundle.textarea.value);
         this.logPanel.push('配置已保存', 'success');
@@ -184,7 +222,7 @@ export class ASVApp {
       }
     });
 
-    this.modelBundle = this.createEditorModal('编辑 model.toml', async () => {
+    this.modelBundle = this.createEditorModal('编辑 model.toml', MODEL_DEFAULT_TEMPLATE, async () => {
       try {
         await this.rest.saveModel(this.modelBundle.textarea.value);
         this.logPanel.push('模型配置已保存', 'success');
@@ -231,9 +269,19 @@ export class ASVApp {
     this.keyModal.mount(this.root);
   }
 
-  private createEditorModal(title: string, onSave: () => void): ModalBundle {
+  private createEditorModal(title: string, helperTemplate: string, onSave: () => void): ModalBundle {
     const wrapper = document.createElement('div');
     wrapper.className = 'asv-modal__content';
+    if (helperTemplate) {
+      const helper = document.createElement('details');
+      helper.className = 'asv-helper';
+      const summary = document.createElement('summary');
+      summary.textContent = '查看默认示例';
+      const pre = document.createElement('pre');
+      pre.textContent = helperTemplate;
+      helper.append(summary, pre);
+      wrapper.appendChild(helper);
+    }
     const textarea = document.createElement('textarea');
     textarea.className = 'asv-textarea';
     textarea.rows = 18;

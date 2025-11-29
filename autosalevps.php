@@ -52,8 +52,9 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 			$this->rest_controller = new ASV_REST_Controller( $this->repository, $parser, $availability, $promo );
 
 			add_action( 'init', array( $this, 'register_shortcode' ) );
+			add_action( 'init', array( $this, 'register_assets' ) );
 			add_action( 'rest_api_init', array( $this->rest_controller, 'register_routes' ) );
-			add_action( 'wp_enqueue_scripts', array( $this, 'register_assets' ) );
+			add_action( 'admin_menu', array( $this, 'register_admin_page' ) );
 		}
 
 		/**
@@ -64,7 +65,7 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 		}
 
 		/**
-		 * Register front-end assets.
+		 * Register shared assets.
 		 */
 		public function register_assets() {
 			$script = plugins_url( 'assets/js/main.js', __FILE__ );
@@ -75,11 +76,58 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 		}
 
 		/**
+		 * Register admin page.
+		 */
+		public function register_admin_page() {
+			add_menu_page(
+				'AutoSaleVPS',
+				'AutoSaleVPS',
+				'manage_options',
+				'autosalevps',
+				array( $this, 'render_admin_page' ),
+				'dashicons-cloud'
+			);
+		}
+
+		/**
+		 * Render admin settings page.
+		 */
+		public function render_admin_page() {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return;
+			}
+
+			$this->enqueue_app_assets();
+
+			echo '<div class="wrap">';
+			echo '<h1>AutoSaleVPS</h1>';
+			echo '<div id="asv-root" class="asv-root asv-root--admin" data-version="' . esc_attr( self::VERSION ) . '">';
+			echo '<div class="asv-loading">正在载入 AutoSaleVPS...</div>';
+			echo '</div>';
+			echo '</div>';
+		}
+
+		/**
 		 * Render shortcode output.
 		 *
 		 * @return string
 		 */
 		public function render_shortcode() {
+			$this->enqueue_app_assets();
+
+			ob_start();
+			?>
+			<div id="asv-root" class="asv-root" data-version="<?php echo esc_attr( self::VERSION ); ?>">
+				<div class="asv-loading">正在载入 AutoSaleVPS...</div>
+			</div>
+			<?php
+			return ob_get_clean();
+		}
+
+		/**
+		 * Enqueue assets with bootstrap payload.
+		 */
+		protected function enqueue_app_assets() {
 			wp_enqueue_script( 'autosalevps-app' );
 			wp_enqueue_style( 'autosalevps-style' );
 
@@ -97,14 +145,6 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 					'options'   => timezone_identifiers_list(),
 				)
 			);
-
-			ob_start();
-			?>
-			<div id="asv-root" class="asv-root" data-version="<?php echo esc_attr( self::VERSION ); ?>">
-				<div class="asv-loading">正在载入 AutoSaleVPS...</div>
-			</div>
-			<?php
-			return ob_get_clean();
 		}
 	}
 }
