@@ -35,7 +35,7 @@ if ( ! class_exists( 'ASV_LLM_Client' ) ) {
 		 * @param string $api_key  Key.
 		 * @param string $model    Model.
 		 */
-		public function __construct( $base_url, $api_key, $model = 'gpt-4o-mini' ) {
+		public function __construct( $base_url, $api_key, $model = 'gpt-4.1-mini' ) {
 			$this->base_url = untrailingslashit( $base_url );
 			$this->api_key  = (string) $api_key;
 			$this->model    = $model;

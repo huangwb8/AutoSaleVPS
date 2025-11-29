@@ -21,6 +21,10 @@ export class ASVLogPanel {
     this.node.prepend(row);
   }
 
+  clear() {
+    this.node.innerHTML = '';
+  }
+
   private formatTime() {
     try {
       return new Date().toLocaleString('zh-CN', {

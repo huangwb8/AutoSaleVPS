@@ -73,7 +73,7 @@ $18.66 /年 (续费同价)
 ```toml
 [aff]
 [aff.rn]
-4886
+code = '4886'
 
 [url]
 [url.rn]
@@ -85,23 +85,27 @@ valid_vps_time = '5-10'
 [vps]
 [vps.rn.923]
 pid = '923'
-human_comment = '非常基础的一款VPS，但是容量相对来说还是比较大的。'
+human_comment = '比较基础的一款VPS'
 
 [vps.rn.924]
 pid = '924'
-human_comment = ''
+human_comment = '2025年黑色星期五活动。CPU弱点，但内存还行。预算有限的人推荐选。'
 
 [vps.rn.925]
 pid = '925'
-human_comment = ''
+human_comment = '2025年黑色星期五活动。作为主流机型推荐，内存、CPU、磁盘空间的均衡很好。'
 
 [vps.rn.926]
 pid = '926'
-human_comment = ''
+human_comment = '2025年黑色星期五活动。小土豪专属。是一款相对极限的机型。'
 
 [vps.rn.927]
 pid = '927'
-human_comment = ''
+human_comment = '2025年黑色星期五活动。大土豪专属。不差钱的就上吧。'
+
+[vps.rn.199]
+pid = '199'
+human_comment = '博主的主力机器，目前已经停售了。'
 ```
 
 这里的`rn`代表某个VPS的厂商，用户可能会放多个VPS厂商的产品，因此这种写法可以保证灵活性。以`rn`为例
@@ -122,8 +126,9 @@ human_comment = ''
 [model_providers]
 [model_providers.omg]
 base_url = 'https://api.ohmygpt.com/v1'
+model = "gpt-4.1-mini"
 prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
-prompt_vps_info = '基于输入给出一断推销VPS的广告，30个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。这是一个例子：`RackNerd 2025年黑五优惠活动。中配里的战斗机！算是比较均衡的机型了。这一款可以畅玩各种docker应用。`'
+prompt_vps_info = '基于输入给出一断推销VPS的广告，字数限定在30字左右。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。不要添加推广链接，我已经在其它地方展示推广链接了。这是一个例子：`RackNerd 2025年黑五优惠活动。中配里的战斗机！算是比较均衡的机型了。这一款可以畅玩各种docker应用。`'
 ```
 
 这里的模型商omg是一个第三方的模型商，提供类似openai的sdk调用，因此可以用于构建由类openai模型驱动的智能应用。这是一个模型商的模型使用示例（和OpenAI的模型基本上是一样的），帮助你了解如何调用LLM来驱动业务：

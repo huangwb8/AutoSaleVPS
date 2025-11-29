@@ -140,6 +140,20 @@
   margin-top: 0.5rem;
 }
 
+.asv-root:not(.asv-root--admin) .asv-log-panel {
+  display: none;
+}
+
+.asv-root:not(.asv-root--admin) .asv-vps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.asv-root:not(.asv-root--admin) .asv-card {
+  width: 100%;
+}
+
 .asv-card {
   background: var(--asv-card);
   border: 1px solid var(--asv-border);
@@ -241,6 +255,39 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
+.asv-meta-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.asv-meta-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.asv-meta-editor__textarea {
+  min-height: 140px;
+  resize: vertical;
+  border: none;
+}
+
+.asv-meta-editor__textarea:focus {
+  outline: 2px solid var(--asv-accent-strong);
+}
+
+.asv-meta-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.asv-meta-hint {
+  font-size: 0.82rem;
+  color: var(--asv-muted);
+}
+
 .asv-card__note {
   background: rgba(249, 115, 22, 0.08);
   border: 1px solid rgba(249, 115, 22, 0.15);
@@ -297,10 +344,38 @@
   border: 1px solid var(--asv-border);
   border-radius: 18px;
   padding: 1.25rem;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+}
+
+.asv-log-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--asv-text);
+}
+
+.asv-log-panel__clear {
+  border: none;
+  background: transparent;
+  color: var(--asv-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.4rem;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.asv-log-panel__clear:hover {
+  color: var(--asv-accent-strong);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.asv-log-panel__body {
   max-height: 260px;
   overflow-y: auto;
   font-size: 0.9rem;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
 }
 
 .asv-log-row {

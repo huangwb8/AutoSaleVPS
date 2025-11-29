@@ -59,7 +59,7 @@ if ( ! class_exists( 'ASV_Promo_Service' ) ) {
 			$llm      = new ASV_LLM_Client(
 				isset( $provider['base_url'] ) ? $provider['base_url'] : '',
 				$this->repository->get_api_key(),
-				isset( $provider['model'] ) ? $provider['model'] : 'gpt-4o-mini'
+				isset( $provider['model'] ) ? $provider['model'] : 'gpt-4.1-mini'
 			);
 
 			$statement = '模型尚未配置';

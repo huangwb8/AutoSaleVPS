@@ -3,6 +3,7 @@ import { ASVConfig } from '../core/asvConfig';
 
 import { ASVModal } from './ASVModal';
 import { ASVLogPanel } from './ASVLogPanel';
+import { buildMetaDisplay, describeMetaSource } from './metaUtils';
 
 const CONFIG_DEFAULT_TEMPLATE = `[aff]
 [aff.rn]
@@ -39,6 +40,7 @@ human_comment = ''`;
 const MODEL_DEFAULT_TEMPLATE = `[model_providers]
 [model_providers.omg]
 base_url = 'https://api.ohmygpt.com/v1'
+model = 'gpt-4.1-mini'
 prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
 prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'`;
 
@@ -84,6 +86,7 @@ export class ASVApp {
   private rest: ASVRestClient;
   private logPanel!: ASVLogPanel;
   private logPanelHost!: HTMLElement;
+  private logPanelClearButton?: HTMLButtonElement;
   private bootstrap: BootstrapData;
   private vpsContainer!: HTMLElement;
   private timezoneSelect!: HTMLSelectElement;
@@ -124,6 +127,9 @@ export class ASVApp {
 
   private mountLogPanel() {
     this.logPanel = new ASVLogPanel(this.logPanelHost, this.bootstrap.timezone);
+    this.logPanelClearButton?.addEventListener('click', () => {
+      this.logPanel.clear();
+    });
   }
 
   private renderLayout() {
@@ -172,9 +178,23 @@ export class ASVApp {
       this.root.appendChild(toolbar);
     }
 
-    this.logPanelHost = document.createElement('div');
-    this.logPanelHost.className = 'asv-log-panel';
-    this.root.appendChild(this.logPanelHost);
+    const logWrapper = document.createElement('div');
+    logWrapper.className = 'asv-log-panel';
+    const logHeader = document.createElement('div');
+    logHeader.className = 'asv-log-panel__header';
+    const logTitle = document.createElement('span');
+    logTitle.textContent = '系统日志';
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'asv-log-panel__clear';
+    clearBtn.textContent = '清空日志';
+    logHeader.append(logTitle, clearBtn);
+    const logBody = document.createElement('div');
+    logBody.className = 'asv-log-panel__body';
+    logWrapper.append(logHeader, logBody);
+    this.logPanelHost = logBody;
+    this.logPanelClearButton = clearBtn;
+    this.root.appendChild(logWrapper);
 
     this.vpsContainer = document.createElement('div');
     this.vpsContainer.className = 'asv-vps-list';
@@ -228,7 +248,7 @@ export class ASVApp {
           this.keyModal.show();
           break;
         case 'check-vps':
-          this.triggerAvailabilitySweep('手动查看VPS状态');
+          this.handleManualStatusCheck();
           break;
         case 'diagnostics':
           this.runDiagnostics();
@@ -239,13 +259,22 @@ export class ASVApp {
     });
   }
 
+  private async handleManualStatusCheck() {
+    if (!this.bootstrap.isAdmin) {
+      return;
+    }
+
+    await this.loadVpsCards();
+    this.triggerAvailabilitySweep('手动查看VPS状态');
+  }
+
   private prepareModals() {
     this.configBundle = this.createEditorModal('编辑 config.toml', CONFIG_DEFAULT_TEMPLATE, async () => {
       try {
         await this.rest.saveConfig(this.configBundle.textarea.value);
         this.logPanel.push('配置已保存', 'success');
         this.currentConfig = new ASVConfig(this.configBundle.textarea.value);
-        this.loadVpsCards();
+        this.scheduleValidation();
         this.configBundle.modal.hide();
       } catch (error) {
         this.logPanel.push(`保存失败：${(error as Error).message}`, 'error');
@@ -256,7 +285,6 @@ export class ASVApp {
       try {
         await this.rest.saveModel(this.modelBundle.textarea.value);
         this.logPanel.push('模型配置已保存', 'success');
-        this.loadVpsCards();
       } catch (error) {
         this.logPanel.push(`保存模型失败：${(error as Error).message}`, 'error');
       }
@@ -421,12 +449,11 @@ export class ASVApp {
         card.appendChild(this.createPromoEditor(item, promo));
       }
 
-      const metaBlock = document.createElement('pre');
-      metaBlock.className = 'asv-meta-block';
-      metaBlock.textContent = item.meta.length
-        ? item.meta.join('\n')
-        : '等待抓取 VPS 详情，保存配置并验证后自动填充。';
-      card.appendChild(metaBlock);
+      if (this.bootstrap.isAdmin) {
+        card.appendChild(this.createMetaEditor(item));
+      } else {
+        card.appendChild(this.createMetaViewer(item));
+      }
 
       if (item.human_comment) {
         const note = document.createElement('div');
@@ -488,6 +515,61 @@ export class ASVApp {
     return editor;
   }
 
+  private createMetaViewer(item: VpsRecord) {
+    const container = document.createElement('div');
+    container.className = 'asv-meta-section';
+
+    const pre = document.createElement('pre');
+    pre.className = 'asv-meta-block';
+    pre.textContent = this.formatMetaDisplay(item);
+    container.appendChild(pre);
+
+    const hint = document.createElement('div');
+    hint.className = 'asv-meta-hint';
+    hint.textContent = describeMetaSource(item.meta_source);
+    container.appendChild(hint);
+
+    return container;
+  }
+
+  private createMetaEditor(item: VpsRecord) {
+    const container = document.createElement('div');
+    container.className = 'asv-meta-editor';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'asv-meta-editor__textarea asv-meta-block';
+    textarea.value = this.formatMetaDisplay(item);
+    textarea.spellcheck = false;
+    container.appendChild(textarea);
+
+    const hint = document.createElement('div');
+    hint.className = 'asv-meta-hint';
+    hint.textContent = describeMetaSource(item.meta_source);
+    container.appendChild(hint);
+
+    const actions = document.createElement('div');
+    actions.className = 'asv-meta-actions';
+
+    const saveBtn = this.createButton('保存信息');
+    saveBtn.classList.add('asv-btn--sm');
+
+    const aiBtn = this.createButton('AI 整理');
+    aiBtn.classList.add('asv-btn--ghost', 'asv-btn--sm');
+
+    saveBtn.addEventListener('click', () =>
+      this.persistMetaOverride(item.vendor, item.pid, textarea, hint, saveBtn, aiBtn)
+    );
+
+    aiBtn.addEventListener('click', () =>
+      this.regenerateMeta(item.vendor, item.pid, textarea, hint, saveBtn, aiBtn)
+    );
+
+    actions.append(saveBtn, aiBtn);
+    container.appendChild(actions);
+
+    return container;
+  }
+
   private describePromoSource(source?: string) {
     if (source === 'manual') {
       return '当前为管理员自定义内容';
@@ -498,7 +580,17 @@ export class ASVApp {
     return '未检测到 AI 结果，将展示默认描述';
   }
 
+  private formatMetaDisplay(item: VpsRecord) {
+    return buildMetaDisplay(item.meta_display, item.meta || []);
+  }
+
   private togglePromoButtons(disabled: boolean, ...buttons: HTMLButtonElement[]) {
+    buttons.forEach((btn) => {
+      btn.disabled = disabled;
+    });
+  }
+
+  private toggleMetaButtons(disabled: boolean, ...buttons: HTMLButtonElement[]) {
     buttons.forEach((btn) => {
       btn.disabled = disabled;
     });
@@ -535,6 +627,59 @@ export class ASVApp {
     }
   }
 
+  private async persistMetaOverride(
+    vendor: string,
+    pid: string,
+    textarea: HTMLTextAreaElement,
+    hint: HTMLElement,
+    saveBtn: HTMLButtonElement,
+    regenBtn: HTMLButtonElement
+  ) {
+    const value = textarea.value.trim();
+    if (!value) {
+      this.logPanel.push('展示信息不能为空', 'error');
+      textarea.focus();
+      return;
+    }
+
+    this.toggleMetaButtons(true, saveBtn, regenBtn);
+    try {
+      const result = await this.rest.saveMeta(vendor, pid, value);
+      const content = result.content || '';
+      textarea.value = content;
+      hint.textContent = describeMetaSource(result.source);
+      this.updateMetaRecord(vendor, pid, content, result.source);
+      this.logPanel.push(`${vendor} ${pid} 元信息已保存`, 'success');
+    } catch (error) {
+      this.logPanel.push(`保存元信息失败：${(error as Error).message}`, 'error');
+    } finally {
+      this.toggleMetaButtons(false, saveBtn, regenBtn);
+    }
+  }
+
+  private async regenerateMeta(
+    vendor: string,
+    pid: string,
+    textarea: HTMLTextAreaElement,
+    hint: HTMLElement,
+    saveBtn: HTMLButtonElement,
+    regenBtn: HTMLButtonElement
+  ) {
+    this.toggleMetaButtons(true, saveBtn, regenBtn);
+    try {
+      const result = await this.rest.refreshMeta(vendor, pid);
+      const content = result.content || '';
+      textarea.value = content;
+      hint.textContent = describeMetaSource(result.source);
+      this.updateMetaRecord(vendor, pid, content, result.source);
+      this.logPanel.push(`${vendor} ${pid} 元信息已由 AI 整理`, 'success');
+    } catch (error) {
+      this.logPanel.push(`AI 整理失败：${(error as Error).message}`, 'error');
+    } finally {
+      this.toggleMetaButtons(false, saveBtn, regenBtn);
+    }
+  }
+
   private async regeneratePromo(
     vendor: string,
     pid: string,
@@ -564,6 +709,14 @@ export class ASVApp {
     if (record) {
       record.promo = promo;
       record.promo_source = source;
+    }
+  }
+
+  private updateMetaRecord(vendor: string, pid: string, content: string, source?: string) {
+    const record = this.currentVps.find((item) => item.vendor === vendor && item.pid === pid);
+    if (record) {
+      record.meta_display = content;
+      record.meta_source = source;
     }
   }
 

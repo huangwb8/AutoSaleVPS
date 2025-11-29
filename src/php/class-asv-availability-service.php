@@ -127,7 +127,7 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 		protected function build_llm_client( $provider ) {
 			$api_key  = $this->repository->get_api_key();
 			$base_url = isset( $provider['base_url'] ) ? $provider['base_url'] : '';
-			$model    = isset( $provider['model'] ) ? $provider['model'] : 'gpt-4o-mini';
+			$model    = isset( $provider['model'] ) ? $provider['model'] : 'gpt-4.1-mini';
 
 			return new ASV_LLM_Client( $base_url, $api_key, $model );
 		}
