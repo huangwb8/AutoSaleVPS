@@ -4,11 +4,25 @@ import { resolve } from 'node:path';
 
 const pad = (value) => String(value).padStart(2, '0');
 const now = new Date();
-const version =
-  `v${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
-  `${pad(now.getHours())}${pad(now.getMinutes())}`;
+const yearFull = now.getFullYear();
+const yearShort = pad(yearFull % 100);
+const month = pad(now.getMonth() + 1);
+const day = pad(now.getDate());
+const hours = pad(now.getHours());
+const minutes = pad(now.getMinutes());
+const version = `v${yearFull}${month}${day}${hours}${minutes}`;
+const versionShort = `v${yearShort}${month}${day}${hours}${minutes}`;
 const latestName = 'AutoSaleVPS.zip';
 const latestPath = resolve(latestName);
+const versionFilePath = resolve('version.md');
+
+const versionDocument =
+  `# AutoSaleVPS Version\n\n` +
+  `当前版本（vYYYYMMDDHHmm）：${version}\n` +
+  `短格式（vyymmddhhmm）：${versionShort}\n` +
+  `生成时间：${now.toISOString()}\n` +
+  `\n该文件会在执行 npm run package 时同步为最新打包版本。\n`;
+writeFileSync(versionFilePath, versionDocument, 'utf8');
 
 const pluginPath = resolve('autosalevps.php');
 const originalPlugin = readFileSync(pluginPath, 'utf8');
