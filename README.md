@@ -1,5 +1,5 @@
 # AutoSaleVPS
-AutoSaleVPS 是一个基于 WordPress 的 VPS 推广插件，负责：
+AutoSaleVPS 是一个基于WordPress和大语言模型的商品（比如VPS等具有固定链接模式[affiliate ID和product ID]）推广插件，负责：
 
 - 读取 `config/config.toml` 中的多家商家与 PID，自动生成推广卡片；
 - 通过 `valid_format` 校验商品是否还能下单，并在售罄时高亮提醒；
