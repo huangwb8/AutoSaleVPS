@@ -1,27 +1,98 @@
 import './style.css';
 import { ASVApp } from './ui/ASVApp';
 
+type ASVBootstrapPayload = {
+  restUrl: string;
+  nonce: string;
+  isAdmin: boolean;
+  timezone: string;
+  version: string;
+  hasKey: boolean;
+  options: string[];
+  extraCss: string;
+};
+
 declare global {
   interface Window {
-    ASV_BOOTSTRAP: {
-      restUrl: string;
-      nonce: string;
-      isAdmin: boolean;
-      timezone: string;
-      version: string;
-      hasKey: boolean;
-      options: string[];
-      extraCss: string;
-    };
+    ASV_BOOTSTRAP?: ASVBootstrapPayload;
+    AutoSaleVPSMount?: (target?: HTMLElement | null) => boolean;
   }
 }
 
-const bootstrap = window.ASV_BOOTSTRAP;
-const root = document.getElementById('asv-root');
+let missingBootstrapWarned = false;
+let observer: MutationObserver | null = null;
 
-if (root && bootstrap) {
-  const app = new ASVApp(root, bootstrap);
+const isMountReady = () => {
+  if (window.ASV_BOOTSTRAP) {
+    return true;
+  }
+
+  if (!missingBootstrapWarned) {
+    console.warn('AutoSaleVPS: 缺少初始化数据');
+    missingBootstrapWarned = true;
+  }
+
+  return false;
+};
+
+const findRoot = (node?: HTMLElement | null) => {
+  if (node) {
+    if (node.id === 'asv-root') {
+      return node;
+    }
+
+    return node.querySelector<HTMLElement>('#asv-root');
+  }
+
+  return document.getElementById('asv-root');
+};
+
+const mountApp = (target?: HTMLElement | null) => {
+  if (!isMountReady()) {
+    return false;
+  }
+
+  const root = findRoot(target);
+
+  if (!root || root.dataset.asvMounted === 'true') {
+    return Boolean(root);
+  }
+
+  const app = new ASVApp(root, window.ASV_BOOTSTRAP!);
   app.init();
-} else {
-  console.warn('AutoSaleVPS: 缺少挂载节点或初始化数据');
-}
+  root.dataset.asvMounted = 'true';
+  return true;
+};
+
+window.AutoSaleVPSMount = mountApp;
+
+const observeRoot = () => {
+  if (observer || typeof MutationObserver === 'undefined') {
+    return;
+  }
+
+  observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (!(node instanceof HTMLElement)) {
+          return;
+        }
+
+        const candidate = findRoot(node);
+
+        if (candidate) {
+          mountApp(candidate);
+        }
+      });
+    });
+  });
+
+  const host = document.body || document.documentElement;
+
+  if (host) {
+    observer.observe(host, { childList: true, subtree: true });
+  }
+};
+
+mountApp();
+observeRoot();
