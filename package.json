@@ -9,7 +9,7 @@
     "lint": "npm run lint:js && npm run lint:css",
     "lint:js": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:css": "stylelint \"src/**/*.{css,scss}\"",
-    "test": "vitest run",
+    "test": "vitest run && php tests/php/availability_service.php",
     "test:watch": "vitest",
     "package": "npm run build && node scripts/package.mjs"
   },
