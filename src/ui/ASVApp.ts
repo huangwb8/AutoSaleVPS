@@ -41,8 +41,21 @@ const MODEL_DEFAULT_TEMPLATE = `[model_providers]
 [model_providers.omg]
 base_url = 'https://api.ohmygpt.com/v1'
 model = 'gpt-4.1-mini'
-prompt_valid = '基于输入判断VPS是否已经卖完或下架；如果已经卖完或下架，请返回FALSE；否则，请返回TRUE'
-prompt_vps_info = '基于输入给出一断推销VPS的广告，20-100个简体中文。推广要求贴合VPS的实际，不能无脑推，要像一个优秀的VPS推广商那样推广产品。'
+prompt_valid = '''
+你是 AutoSaleVPS 的可卖性审核助手。你将收到一个 JSON，其中包含：
+- vendor / pid / valid_url；
+- HTTP status、精选响应头、正文摘要、HTML 截断片段；
+- initial_state / initial_reason（启发式结论）以及 signals（关键字命中列表）。
+
+请结合所有字段（尤其是 signals 与正文语义）判断该 VPS 是否还可下单，若信息不足可返回 unknown。
+输出要求：
+- 必须是单个 JSON 对象，不能带额外文字。
+- 字段：status(online/offline/unknown)、reason(<=120字，概述证据)、confidence(0~1 可选)，可扩展 evidence 数组列出关键线索。
+- 若检测到“sold out”“out of stock”等负面信号，直接判定 offline；若能确认有购入按钮/库存提示再判定 online。
+
+严格遵守 JSON 输出格式，避免自然语言描述。
+'''
+prompt_vps_info = '基于输入给出一段推销VPS的广告，字数限定在40字左右。推广要求贴合VPS的实际，不能无脑推。从建立博客、AI、RSS、Docker等4个应用场景评估VPS的推荐性。不要添加推广链接，我已经在其它地方展示推广链接。'
 prompt_meta_layout = '请将输入JSON整理成固定的8行中文，依次为：厂商、CPU、内存、存储、带宽、网络、价格、地理位置。每一行必须使用“字段：内容”格式，字段名需与上述完全一致，如信息缺失则填“-”，不要输出其他文字。'`;
 
 const EXTRA_CSS_TEMPLATE = `/* 适配 https://blognas.hwb0307.com/ad 的通透布局 */
