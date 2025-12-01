@@ -109,7 +109,7 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 			echo '<div class="wrap">';
 			echo '<h1>AutoSaleVPS</h1>';
 			echo '<div id="asv-root" class="asv-root asv-root--admin" data-version="' . esc_attr( self::VERSION ) . '">';
-			echo '<div class="asv-loading">正在载入 AutoSaleVPS...</div>';
+			echo '<div class="asv-loading">正在载入 AutoSaleVPS，可以按Ctrl + r强制刷新..</div>';
 			echo '</div>';
 			echo '</div>';
 		}
@@ -125,7 +125,7 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 			ob_start();
 			?>
 			<div id="asv-root" class="asv-root" data-version="<?php echo esc_attr( self::VERSION ); ?>">
-				<div class="asv-loading">正在载入 AutoSaleVPS...</div>
+			<div class="asv-loading">正在载入 AutoSaleVPS，可以按Ctrl + r强制刷新..</div>
 			</div>
 			<?php
 			return ob_get_clean();
