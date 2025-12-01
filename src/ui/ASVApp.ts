@@ -133,6 +133,7 @@ export class ASVApp {
     this.applyExtraCss(this.bootstrap.extraCss || '');
     this.renderLayout();
     this.mountLogPanel();
+    this.attachButtonLogs();
     this.attachTimezone();
     this.attachButtons();
     this.loadVpsCards(true);
@@ -167,17 +168,17 @@ export class ASVApp {
       const secondaryActions = document.createElement('div');
       secondaryActions.className = 'asv-actions asv-actions--secondary';
 
-      const editConfigBtn = this.createButton('编辑VPS配置');
+      const editConfigBtn = this.createButton('编辑VPS配置', '打开 config.toml 编辑器');
       editConfigBtn.dataset.action = 'edit-config';
-      const editModelBtn = this.createButton('编辑模型配置');
+      const editModelBtn = this.createButton('编辑模型配置', '打开 model.toml 编辑器');
       editModelBtn.dataset.action = 'edit-model';
-      const addKeyBtn = this.createButton(this.hasKey ? '更新KEY' : '添加KEY');
+      const addKeyBtn = this.createButton(this.hasKey ? '更新KEY' : '添加KEY', '打开 API KEY 设置');
       addKeyBtn.dataset.action = 'add-key';
-      const cssBtn = this.createButton('额外CSS');
+      const cssBtn = this.createButton('额外CSS', '打开额外 CSS 编辑器');
       cssBtn.dataset.action = 'edit-css';
-      const checkBtn = this.createButton('检查可用性');
+      const checkBtn = this.createButton('检查可用性', '运行诊断');
       checkBtn.dataset.action = 'diagnostics';
-      const statusBtn = this.createButton('查看VPS状态');
+      const statusBtn = this.createButton('查看VPS状态', '刷新 VPS 列表');
       statusBtn.dataset.action = 'check-vps';
       actions.append(editConfigBtn, editModelBtn, addKeyBtn, cssBtn);
       secondaryActions.append(checkBtn, statusBtn);
@@ -215,6 +216,7 @@ export class ASVApp {
     clearBtn.type = 'button';
     clearBtn.className = 'asv-log-panel__clear';
     clearBtn.textContent = '清空日志';
+    clearBtn.dataset.logSkip = 'true';
     logHeader.append(logTitle, clearBtn);
     const logBody = document.createElement('div');
     logBody.className = 'asv-log-panel__body';
@@ -228,12 +230,38 @@ export class ASVApp {
     this.root.appendChild(this.vpsContainer);
   }
 
-  private createButton(text: string) {
+  private createButton(text: string, logLabel?: string) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = text;
     btn.className = 'asv-btn';
+    btn.dataset.logLabel = logLabel || text;
     return btn;
+  }
+
+  private attachButtonLogs() {
+    this.root.addEventListener(
+      'click',
+      (event) => {
+        if (!this.logPanel) {
+          return;
+        }
+
+        const target = event.target as HTMLElement | null;
+        const button = target?.closest('button');
+        if (!button || button.dataset.logSkip === 'true') {
+          return;
+        }
+
+        const label = (button.dataset.logLabel || button.textContent || '').trim();
+        if (!label) {
+          return;
+        }
+
+        this.logPanel.push(`操作：${label}`);
+      },
+      true
+    );
   }
 
   private attachTimezone() {
@@ -306,7 +334,7 @@ export class ASVApp {
       } catch (error) {
         this.logPanel.push(`保存失败：${(error as Error).message}`, 'error');
       }
-    });
+    }, '保存 config.toml');
 
     this.modelBundle = this.createEditorModal('编辑 model.toml', MODEL_DEFAULT_TEMPLATE, async () => {
       try {
@@ -316,7 +344,7 @@ export class ASVApp {
       } catch (error) {
         this.logPanel.push(`保存模型失败：${(error as Error).message}`, 'error');
       }
-    });
+    }, '保存 model.toml');
 
     this.cssBundle = this.createEditorModal('额外 CSS（可选）', EXTRA_CSS_TEMPLATE, async () => {
       try {
@@ -327,7 +355,7 @@ export class ASVApp {
       } catch (error) {
         this.logPanel.push(`保存 CSS 失败：${(error as Error).message}`, 'error');
       }
-    });
+    }, '保存额外 CSS');
 
     const keyContent = document.createElement('div');
     keyContent.className = 'asv-modal__content';
@@ -341,6 +369,7 @@ export class ASVApp {
     eye.type = 'button';
     eye.className = 'asv-eye';
     eye.textContent = '👁';
+    eye.dataset.logLabel = '预览 API KEY';
     eye.addEventListener('mouseenter', () => {
       this.keyInput.type = 'text';
     });
@@ -348,7 +377,7 @@ export class ASVApp {
       this.keyInput.type = 'password';
     });
 
-    const saveBtn = this.createButton('保存配置');
+    const saveBtn = this.createButton('保存配置', '保存 API KEY');
     saveBtn.addEventListener('click', async () => {
       try {
         await this.rest.saveApiKey(this.keyInput.value);
@@ -366,7 +395,12 @@ export class ASVApp {
     this.keyModal.mount(this.root);
   }
 
-  private createEditorModal(title: string, helperTemplate: string, onSave: () => void): ModalBundle {
+  private createEditorModal(
+    title: string,
+    helperTemplate: string,
+    onSave: () => void,
+    logLabel?: string
+  ): ModalBundle {
     const wrapper = document.createElement('div');
     wrapper.className = 'asv-modal__content';
     if (helperTemplate) {
@@ -382,7 +416,7 @@ export class ASVApp {
     const textarea = document.createElement('textarea');
     textarea.className = 'asv-textarea';
     textarea.rows = 18;
-    const saveBtn = this.createButton('保存配置');
+    const saveBtn = this.createButton('保存配置', logLabel || `保存 ${title}`);
     saveBtn.addEventListener('click', onSave);
     wrapper.append(textarea, saveBtn);
     const modal = new ASVModal(title, wrapper);
@@ -498,10 +532,9 @@ export class ASVApp {
       const footer = document.createElement('footer');
       footer.className = 'asv-card__footer';
       if (this.bootstrap.isAdmin) {
-        const btn = document.createElement('button');
-        btn.className = 'asv-btn asv-btn--ghost';
-        btn.type = 'button';
-        btn.textContent = '验证';
+        const targetLabel = `${item.vendor.toUpperCase()}#${item.pid}`;
+        const btn = this.createButton('验证', `验证 ${targetLabel}`);
+        btn.classList.add('asv-btn--ghost');
         btn.addEventListener('click', () => this.validateSingle(item.vendor, item.pid, '手动验证'));
         footer.appendChild(btn);
       }
@@ -524,10 +557,11 @@ export class ASVApp {
     const actions = document.createElement('div');
     actions.className = 'asv-promo-actions';
 
-    const saveBtn = this.createButton('保存推广语');
+    const label = `${item.vendor.toUpperCase()}#${item.pid}`;
+    const saveBtn = this.createButton('保存推广语', `保存推广语 ${label}`);
     saveBtn.classList.add('asv-btn--sm');
 
-    const regenBtn = this.createButton('AI 重写');
+    const regenBtn = this.createButton('AI 重写', `AI 重写推广语 ${label}`);
     regenBtn.classList.add('asv-btn--ghost', 'asv-btn--sm');
 
     saveBtn.addEventListener('click', () =>
@@ -573,10 +607,11 @@ export class ASVApp {
     const actions = document.createElement('div');
     actions.className = 'asv-meta-actions';
 
-    const saveBtn = this.createButton('保存信息');
+    const label = `${item.vendor.toUpperCase()}#${item.pid}`;
+    const saveBtn = this.createButton('保存信息', `保存元信息 ${label}`);
     saveBtn.classList.add('asv-btn--sm');
 
-    const aiBtn = this.createButton('AI 整理');
+    const aiBtn = this.createButton('AI 整理', `AI 整理元信息 ${label}`);
     aiBtn.classList.add('asv-btn--ghost', 'asv-btn--sm');
 
     saveBtn.addEventListener('click', () =>

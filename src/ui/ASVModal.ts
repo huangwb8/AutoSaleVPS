@@ -16,6 +16,7 @@ export class ASVModal {
     closeBtn.className = 'asv-modal__close';
     closeBtn.type = 'button';
     closeBtn.textContent = '×';
+    closeBtn.dataset.logLabel = `关闭 ${title}`;
     closeBtn.addEventListener('click', () => this.hide());
     header.appendChild(closeBtn);
 
