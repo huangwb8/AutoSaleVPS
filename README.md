@@ -1,6 +1,17 @@
+<div align="center">
+
 # AutoSaleVPS
 
-[中文版说明](README_ZH.md)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](AutoSaleVPS.zip)
+[![Platform](https://img.shields.io/badge/platform-WordPress%20%7C%20PHP%208.1%2B%20%7C%20Node%2018%2B-lightgrey.svg)](#required-environment--repository-layout)
+[![Built with](https://img.shields.io/badge/built%20with-Vite%20%2B%20TypeScript-orange.svg)](https://vitejs.dev/)
+[![Package](https://img.shields.io/badge/download-AutoSaleVPS.zip-brightgreen.svg)](AutoSaleVPS.zip)
+
+English | [中文](README_ZH.md) | [Changelog](version.md)
+
+<strong>LLM-powered WordPress plugin for VPS promotion, validation, and config management.</strong>
+
+</div>
 
 AutoSaleVPS is a WordPress plugin backed by large language models. It targets products that expose predictable URL patterns (affiliate ID + product ID, such as VPS plans) and it can:
 
