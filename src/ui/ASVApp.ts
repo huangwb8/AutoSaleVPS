@@ -121,12 +121,14 @@ export class ASVApp {
   private availabilityTimer?: number;
   private inFlightValidation = false;
   private extraCssNode?: HTMLStyleElement;
+  private timezone: string;
 
   constructor(root: HTMLElement, bootstrap: BootstrapData) {
     this.root = root;
     this.bootstrap = bootstrap;
     this.rest = new ASVRestClient(bootstrap.restUrl, bootstrap.nonce);
     this.hasKey = bootstrap.hasKey;
+    this.timezone = bootstrap.timezone;
   }
 
   init() {
@@ -270,6 +272,8 @@ export class ASVApp {
       try {
         await this.rest.saveTimezone(timezone);
         this.logPanel.setTimezone(timezone);
+        this.timezone = timezone;
+        this.updateCardTimestamps();
         this.logPanel.push(`已切换到 ${timezone}`);
       } catch (error) {
         this.logPanel.push(`设置时区失败：${(error as Error).message}`, 'error');
@@ -491,6 +495,9 @@ export class ASVApp {
       if (item.available === false) {
         card.classList.add('asv-card--offline');
       }
+      if (item.checked_at) {
+        card.dataset.checkedAt = `${item.checked_at}`;
+      }
 
       const title = document.createElement('div');
       title.className = 'asv-card__title';
@@ -538,6 +545,11 @@ export class ASVApp {
         btn.addEventListener('click', () => this.validateSingle(item.vendor, item.pid, '手动验证'));
         footer.appendChild(btn);
       }
+
+      const timestamp = document.createElement('div');
+      timestamp.className = 'asv-card__timestamp';
+      timestamp.textContent = this.formatCheckedAt(item.checked_at);
+      footer.prepend(timestamp);
       card.appendChild(footer);
 
       this.vpsContainer.appendChild(card);
@@ -846,13 +858,25 @@ export class ASVApp {
         pill.className = `asv-status-pill ${available ? 'asv-status-pill--up' : 'asv-status-pill--down'}`;
       }
       card.querySelector('.asv-soldout')?.remove();
+
+      const normalizedCheckedAt = checkedAt ?? Math.floor(Date.now() / 1000);
+      if (normalizedCheckedAt) {
+        (card as HTMLElement).dataset.checkedAt = `${normalizedCheckedAt}`;
+      } else {
+        delete (card as HTMLElement).dataset.checkedAt;
+      }
+      const ts = card.querySelector('.asv-card__timestamp');
+      if (ts) {
+        ts.textContent = this.formatCheckedAt(normalizedCheckedAt);
+      }
     }
 
     const match = this.currentVps.find((item) => item.vendor === vendor && item.pid === pid);
     if (match) {
+      const normalizedCheckedAt = checkedAt ?? Math.floor(Date.now() / 1000);
       match.available = available;
       match.message = message;
-      match.checked_at = checkedAt ?? Date.now() / 1000;
+      match.checked_at = normalizedCheckedAt;
     }
   }
 
@@ -898,6 +922,35 @@ export class ASVApp {
   private sleep(duration: number) {
     return new Promise((resolve) => {
       window.setTimeout(resolve, duration);
+    });
+  }
+
+  private formatCheckedAt(checkedAt: number | null | undefined) {
+    if (!checkedAt) {
+      return '最后更新时间：-';
+    }
+
+    try {
+      return `最后更新时间：${new Date(checkedAt * 1000).toLocaleString('zh-CN', {
+        timeZone: this.timezone,
+        hour12: false
+      })}`;
+    } catch (error) {
+      console.warn('formatCheckedAt fallback', error);
+      return `最后更新时间：${new Date(checkedAt * 1000).toLocaleString()}`;
+    }
+  }
+
+  private updateCardTimestamps() {
+    this.vpsContainer.querySelectorAll<HTMLElement>('.asv-card').forEach((card) => {
+      const checkedAtRaw = card.dataset.checkedAt;
+      const ts = card.querySelector('.asv-card__timestamp');
+      if (!ts) {
+        return;
+      }
+
+      const checkedAt = checkedAtRaw ? Number(checkedAtRaw) : null;
+      ts.textContent = this.formatCheckedAt(Number.isFinite(checkedAt) ? checkedAt : null);
     });
   }
 }

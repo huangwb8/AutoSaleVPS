@@ -383,6 +383,12 @@
   align-items: center;
   gap: 0.75rem;
   color: var(--asv-muted);
+  font-size: 0.9rem;
+}
+
+.asv-card__timestamp {
+  font-weight: 500;
+  color: var(--asv-muted);
 }
 
 .asv-status-pill {
