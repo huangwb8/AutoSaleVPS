@@ -2,7 +2,7 @@
 
 # AutoSaleVPS
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](AutoSaleVPS.zip)
+[![Version](https://img.shields.io/github/v/tag/huangwb8/AutoSaleVPS?label=version&sort=semver)](AutoSaleVPS.zip)
 [![Platform](https://img.shields.io/badge/platform-WordPress%20%7C%20PHP%208.1%2B%20%7C%20Node%2018%2B-lightgrey.svg)](#required-environment--repository-layout)
 [![Built with](https://img.shields.io/badge/built%20with-Vite%20%2B%20TypeScript-orange.svg)](https://vitejs.dev/)
 [![Package](https://img.shields.io/badge/download-AutoSaleVPS.zip-brightgreen.svg)](AutoSaleVPS.zip)
