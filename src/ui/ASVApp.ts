@@ -2,7 +2,7 @@ import { ASVRestClient, DiagnosticsResult, VpsRecord } from '../core/asvRestClie
 import { ASVConfig } from '../core/asvConfig';
 
 import { ASVModal } from './ASVModal';
-import { ASVLogPanel } from './ASVLogPanel';
+import { ASVLogPanel, LogLevel, PersistedLog } from './ASVLogPanel';
 import { buildMetaDisplay, describeMetaSource } from './metaUtils';
 
 const CONFIG_DEFAULT_TEMPLATE = `[aff]
@@ -135,6 +135,7 @@ export class ASVApp {
     this.applyExtraCss(this.bootstrap.extraCss || '');
     this.renderLayout();
     this.mountLogPanel();
+    this.loadPersistedLogs();
     this.attachButtonLogs();
     this.attachTimezone();
     this.attachButtons();
@@ -153,6 +154,21 @@ export class ASVApp {
     this.logPanelClearButton?.addEventListener('click', () => {
       this.logPanel.clear();
     });
+  }
+
+  private async loadPersistedLogs() {
+    if (!this.bootstrap.isAdmin) {
+      return;
+    }
+
+    try {
+      const { logs } = await this.rest.fetchLogs();
+      if (logs?.length) {
+        this.logPanel.hydrate(logs as PersistedLog[]);
+      }
+    } catch (error) {
+      this.log(`载入历史日志失败：${(error as Error).message}`, 'error', false);
+    }
   }
 
   private renderLayout() {
@@ -260,7 +276,7 @@ export class ASVApp {
           return;
         }
 
-        this.logPanel.push(`操作：${label}`);
+        this.log(`操作：${label}`);
       },
       true
     );
@@ -274,9 +290,9 @@ export class ASVApp {
         this.logPanel.setTimezone(timezone);
         this.timezone = timezone;
         this.updateCardTimestamps();
-        this.logPanel.push(`已切换到 ${timezone}`);
+        this.log(`已切换到 ${timezone}`);
       } catch (error) {
-        this.logPanel.push(`设置时区失败：${(error as Error).message}`, 'error');
+        this.log(`设置时区失败：${(error as Error).message}`, 'error');
       }
     });
   }
@@ -289,7 +305,7 @@ export class ASVApp {
       }
 
       if (!this.bootstrap.isAdmin) {
-        this.logPanel.push('需要管理员权限执行此操作', 'error');
+        this.log('需要管理员权限执行此操作', 'error');
         return;
       }
 
@@ -331,22 +347,22 @@ export class ASVApp {
     this.configBundle = this.createEditorModal('编辑 config.toml', CONFIG_DEFAULT_TEMPLATE, async () => {
       try {
         await this.rest.saveConfig(this.configBundle.textarea.value);
-        this.logPanel.push('配置已保存', 'success');
+        this.log('配置已保存', 'success');
         this.currentConfig = new ASVConfig(this.configBundle.textarea.value);
         this.scheduleValidation();
         this.configBundle.modal.hide();
       } catch (error) {
-        this.logPanel.push(`保存失败：${(error as Error).message}`, 'error');
+        this.log(`保存失败：${(error as Error).message}`, 'error');
       }
     }, '保存 config.toml');
 
     this.modelBundle = this.createEditorModal('编辑 model.toml', MODEL_DEFAULT_TEMPLATE, async () => {
       try {
         await this.rest.saveModel(this.modelBundle.textarea.value);
-        this.logPanel.push('模型配置已保存', 'success');
+        this.log('模型配置已保存', 'success');
         this.modelBundle.modal.hide();
       } catch (error) {
-        this.logPanel.push(`保存模型失败：${(error as Error).message}`, 'error');
+        this.log(`保存模型失败：${(error as Error).message}`, 'error');
       }
     }, '保存 model.toml');
 
@@ -354,10 +370,10 @@ export class ASVApp {
       try {
         await this.rest.saveExtraCss(this.cssBundle.textarea.value);
         this.applyExtraCss(this.cssBundle.textarea.value);
-        this.logPanel.push('额外 CSS 已保存', 'success');
+        this.log('额外 CSS 已保存', 'success');
         this.cssBundle.modal.hide();
       } catch (error) {
-        this.logPanel.push(`保存 CSS 失败：${(error as Error).message}`, 'error');
+        this.log(`保存 CSS 失败：${(error as Error).message}`, 'error');
       }
     }, '保存额外 CSS');
 
@@ -386,11 +402,11 @@ export class ASVApp {
       try {
         await this.rest.saveApiKey(this.keyInput.value);
         this.hasKey = true;
-        this.logPanel.push('API KEY 已更新', 'success');
+        this.log('API KEY 已更新', 'success');
         this.keyModal.hide();
         this.keyInput.value = '';
       } catch (error) {
-        this.logPanel.push(`保存 KEY 失败：${(error as Error).message}`, 'error');
+        this.log(`保存 KEY 失败：${(error as Error).message}`, 'error');
       }
     });
 
@@ -433,10 +449,10 @@ export class ASVApp {
       const { content } = await this.rest.fetchConfig();
       this.configBundle.textarea.value = content;
       this.currentConfig = new ASVConfig(content);
-      this.logPanel.push('已载入 config.toml');
+      this.log('已载入 config.toml', 'info', false);
       this.scheduleValidation();
     } catch (error) {
-      this.logPanel.push(`载入 config.toml 失败：${(error as Error).message}`, 'error');
+      this.log(`载入 config.toml 失败：${(error as Error).message}`, 'error');
     }
   }
 
@@ -444,9 +460,9 @@ export class ASVApp {
     try {
       const { content } = await this.rest.fetchModel();
       this.modelBundle.textarea.value = content;
-      this.logPanel.push('已载入 model.toml');
+      this.log('已载入 model.toml', 'info', false);
     } catch (error) {
-      this.logPanel.push(`载入 model.toml 失败：${(error as Error).message}`, 'error');
+      this.log(`载入 model.toml 失败：${(error as Error).message}`, 'error');
     }
   }
 
@@ -455,9 +471,9 @@ export class ASVApp {
       const { extraCss } = await this.rest.fetchExtraCss();
       this.cssBundle.textarea.value = extraCss;
       this.applyExtraCss(extraCss);
-      this.logPanel.push('已载入额外 CSS');
+      this.log('已载入额外 CSS', 'info', false);
     } catch (error) {
-      this.logPanel.push(`载入额外 CSS 失败：${(error as Error).message}`, 'error');
+      this.log(`载入额外 CSS 失败：${(error as Error).message}`, 'error');
     }
   }
 
@@ -469,15 +485,15 @@ export class ASVApp {
       this.renderVpsList(vps);
       if (this.bootstrap.isAdmin) {
         if (useCache) {
-          this.logPanel.push('已载入缓存的 VPS 状态，如需更新请点击“查看VPS状态”', 'info');
+          this.log('已载入缓存的 VPS 状态，如需更新请点击“查看VPS状态”', 'info', false);
         } else {
-          this.logPanel.push('已抓取最新 VPS 数据', 'success');
+          this.log('已抓取最新 VPS 数据', 'success');
         }
         this.scheduleValidation();
       }
     } catch (error) {
       this.vpsContainer.innerHTML = '<p class="asv-error">无法获取VPS信息</p>';
-      this.logPanel.push(`获取VPS失败：${(error as Error).message}`, 'error');
+      this.log(`获取VPS失败：${(error as Error).message}`, 'error');
     }
   }
 
@@ -665,7 +681,7 @@ export class ASVApp {
   ) {
     const value = textarea.value.trim();
     if (!value) {
-      this.logPanel.push('推广语不能为空', 'error');
+      this.log('推广语不能为空', 'error');
       textarea.focus();
       return;
     }
@@ -675,9 +691,9 @@ export class ASVApp {
       const result = await this.rest.savePromo(vendor, pid, value);
       textarea.value = result.promo || '';
       this.updatePromoRecord(vendor, pid, result.promo, result.source);
-      this.logPanel.push(`${vendor} ${pid} 推广语已保存`, 'success');
+      this.log(`${vendor} ${pid} 推广语已保存`, 'success');
     } catch (error) {
-      this.logPanel.push(`保存推广语失败：${(error as Error).message}`, 'error');
+      this.log(`保存推广语失败：${(error as Error).message}`, 'error');
     } finally {
       this.togglePromoButtons(false, saveBtn, regenBtn);
     }
@@ -693,7 +709,7 @@ export class ASVApp {
   ) {
     const value = textarea.value.trim();
     if (!value) {
-      this.logPanel.push('展示信息不能为空', 'error');
+      this.log('展示信息不能为空', 'error');
       textarea.focus();
       return;
     }
@@ -705,9 +721,9 @@ export class ASVApp {
       textarea.value = content;
       hint.textContent = describeMetaSource(result.source);
       this.updateMetaRecord(vendor, pid, content, result.source);
-      this.logPanel.push(`${vendor} ${pid} 元信息已保存`, 'success');
+      this.log(`${vendor} ${pid} 元信息已保存`, 'success');
     } catch (error) {
-      this.logPanel.push(`保存元信息失败：${(error as Error).message}`, 'error');
+      this.log(`保存元信息失败：${(error as Error).message}`, 'error');
     } finally {
       this.toggleMetaButtons(false, saveBtn, regenBtn);
     }
@@ -728,9 +744,9 @@ export class ASVApp {
       textarea.value = content;
       hint.textContent = describeMetaSource(result.source);
       this.updateMetaRecord(vendor, pid, content, result.source);
-      this.logPanel.push(`${vendor} ${pid} 元信息已由 AI 整理`, 'success');
+      this.log(`${vendor} ${pid} 元信息已由 AI 整理`, 'success');
     } catch (error) {
-      this.logPanel.push(`AI 整理失败：${(error as Error).message}`, 'error');
+      this.log(`AI 整理失败：${(error as Error).message}`, 'error');
     } finally {
       this.toggleMetaButtons(false, saveBtn, regenBtn);
     }
@@ -748,9 +764,9 @@ export class ASVApp {
       const result = await this.rest.refreshPromo(vendor, pid);
       textarea.value = result.promo || '';
       this.updatePromoRecord(vendor, pid, result.promo, result.source);
-      this.logPanel.push(`${vendor} ${pid} 推广语已重新生成`, 'success');
+      this.log(`${vendor} ${pid} 推广语已重新生成`, 'success');
     } catch (error) {
-      this.logPanel.push(`重新生成推广语失败：${(error as Error).message}`, 'error');
+      this.log(`重新生成推广语失败：${(error as Error).message}`, 'error');
     } finally {
       this.togglePromoButtons(false, saveBtn, regenBtn);
     }
@@ -820,9 +836,9 @@ export class ASVApp {
     }
 
     this.inFlightValidation = true;
-    this.logPanel.push(`${reason}：开始验证所有 VPS`);
+    this.log(`${reason}：开始验证所有 VPS`);
     this.validateAll()
-      .catch((error) => this.logPanel.push(`批量验证失败：${(error as Error).message}`, 'error'))
+      .catch((error) => this.log(`批量验证失败：${(error as Error).message}`, 'error'))
       .finally(() => {
         this.inFlightValidation = false;
       });
@@ -840,10 +856,10 @@ export class ASVApp {
   private async validateSingle(vendor: string, pid: string, source: string) {
     try {
       const result = await this.rest.validateVps(vendor, pid);
-      this.logPanel.push(`${source}：${vendor} ${pid} -> ${result.available ? '在线' : '售罄'} (${result.message})`);
+      this.log(`${source}：${vendor} ${pid} -> ${result.available ? '在线' : '售罄'} (${result.message})`);
       this.applyStatus(vendor, pid, result.available, result.message, result.checked_at);
     } catch (error) {
-      this.logPanel.push(`验证 ${vendor} ${pid} 失败：${(error as Error).message}`, 'error');
+      this.log(`验证 ${vendor} ${pid} 失败：${(error as Error).message}`, 'error');
     }
   }
 
@@ -885,13 +901,29 @@ export class ASVApp {
       const result = await this.rest.runDiagnostics();
       this.renderDiagnostics(result);
     } catch (error) {
-      this.logPanel.push(`诊断失败：${(error as Error).message}`, 'error');
+      this.log(`诊断失败：${(error as Error).message}`, 'error');
     }
   }
 
   private renderDiagnostics(result: DiagnosticsResult) {
-    this.logPanel.push(`网络：${result.network.ok ? '正常' : '异常'} - ${result.network.message}`);
-    this.logPanel.push(`LLM：${result.llm.ok ? '就绪' : '异常'} - ${result.llm.message}`);
+    this.log(`网络：${result.network.ok ? '正常' : '异常'} - ${result.network.message}`);
+    this.log(`LLM：${result.llm.ok ? '就绪' : '异常'} - ${result.llm.message}`);
+  }
+
+  private log(message: string, level: LogLevel = 'info', persist = true) {
+    if (this.logPanel) {
+      this.logPanel.push(message, level);
+    }
+
+    if (!persist || !this.bootstrap.isAdmin) {
+      return;
+    }
+
+    this.rest.appendLog(message, level).catch((error) => {
+      if (this.logPanel) {
+        this.logPanel.push(`写入日志失败：${(error as Error).message}`, 'error');
+      }
+    });
   }
 
   private applyExtraCss(css: string) {

@@ -99,6 +99,18 @@ human_comment = '2025年黑色星期五活动。作为主流机型推荐，内�
 - `url.<厂商>.valid_interval_time`：多久跑一次全量巡检（秒）。
 - `url.<厂商>.valid_vps_time`：单次巡检中不同 VPS 的请求间隔范围（`"5-10"` 表示随机 5~10 秒）。
 - `vps.<厂商>.<pid>`：具体商品配置；`human_comment` 会与 LLM 输出合并为推广语。
+- `log`：日志保留策略（可选）。
+
+#### 日志保留（可选）
+
+```toml
+[log]
+log_size_limit = '2M' # 支持 K/M/G，文件超过该大小会从最旧日志开始裁剪
+log_time_limit = '1m' # 支持 s/h/d/w/m(≈30天)/y，早于该时间窗的日志会被清理
+```
+
+- 两个限制可以单独使用；同时存在时都会生效，最终以“更严格”的裁剪结果为准。
+- 日志文件存放于上传目录 `wp-content/uploads/autosalevps/autosalevps.log`，仅管理员可在前端日志面板查看。
 
 ### `model.toml`
 

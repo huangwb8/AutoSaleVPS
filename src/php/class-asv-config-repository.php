@@ -8,17 +8,18 @@
 require_once __DIR__ . '/class-asv-toml.php';
 
 if ( ! class_exists( 'ASV_Config_Repository' ) ) {
-	class ASV_Config_Repository {
-	const OPTION_API_KEY         = 'autosalevps_api_key';
-	const OPTION_TIMEZONE        = 'autosalevps_timezone';
-	const OPTION_STATUSES        = 'autosalevps_statuses';
-	const OPTION_PROMO_CACHE     = 'autosalevps_promos';
-	const OPTION_PROMO_OVERRIDES = 'autosalevps_promo_overrides';
-	const OPTION_EXTRA_CSS       = 'autosalevps_extra_css';
-	const OPTION_META_CACHE      = 'autosalevps_meta_cache';
-	const OPTION_META_OVERRIDES  = 'autosalevps_meta_overrides';
-	const OPTION_VPS_SNAPSHOT    = 'autosalevps_vps_snapshot';
-		const DEFAULT_TIMEZONE    = 'Asia/Shanghai';
+		class ASV_Config_Repository {
+			const OPTION_API_KEY         = 'autosalevps_api_key';
+			const OPTION_TIMEZONE        = 'autosalevps_timezone';
+			const OPTION_STATUSES        = 'autosalevps_statuses';
+			const OPTION_PROMO_CACHE     = 'autosalevps_promos';
+			const OPTION_PROMO_OVERRIDES = 'autosalevps_promo_overrides';
+			const OPTION_EXTRA_CSS       = 'autosalevps_extra_css';
+			const OPTION_META_CACHE      = 'autosalevps_meta_cache';
+			const OPTION_META_OVERRIDES  = 'autosalevps_meta_overrides';
+			const OPTION_VPS_SNAPSHOT    = 'autosalevps_vps_snapshot';
+			const DEFAULT_TIMEZONE       = 'Asia/Shanghai';
+			const LOG_FILENAME           = 'autosalevps.log';
 
 		/**
 		 * Config path.
@@ -35,6 +36,13 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		protected $model_path;
 
 		/**
+		 * Log file path.
+		 *
+		 * @var string
+		 */
+		protected $log_path;
+
+		/**
 		 * Constructor.
 		 *
 		 * @param string $config_path Config path.
@@ -43,6 +51,7 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		public function __construct( $config_path, $model_path ) {
 			$this->config_path = $config_path;
 			$this->model_path  = $model_path;
+			$this->log_path    = trailingslashit( dirname( $config_path ) ) . self::LOG_FILENAME;
 		}
 
 		/**
@@ -263,19 +272,19 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		 *
 		 * @param array $statuses Status payload.
 		 */
-	public function save_statuses( $statuses ) {
-		update_option( self::OPTION_STATUSES, $statuses );
-	}
+		public function save_statuses( $statuses ) {
+			update_option( self::OPTION_STATUSES, $statuses );
+		}
 
 		/**
 		 * Get saved statuses.
 		 *
 		 * @return array
 		 */
-	public function get_statuses() {
-		$statuses = get_option( self::OPTION_STATUSES, array() );
-		return is_array( $statuses ) ? $statuses : array();
-	}
+		public function get_statuses() {
+			$statuses = get_option( self::OPTION_STATUSES, array() );
+			return is_array( $statuses ) ? $statuses : array();
+		}
 
 	/**
 	 * Save manual promo overrides.
@@ -284,31 +293,31 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 	 * @param string $pid     Product id.
 	 * @param string $content Promo text.
 	 */
-	public function save_promo_override( $vendor, $pid, $content ) {
-		$overrides = $this->get_promo_overrides();
-		$key       = $this->build_vps_key( $vendor, $pid );
-		$body      = trim( (string) $content );
+		public function save_promo_override( $vendor, $pid, $content ) {
+			$overrides = $this->get_promo_overrides();
+			$key       = $this->build_vps_key( $vendor, $pid );
+			$body      = trim( (string) $content );
 
-		if ( '' === $body ) {
-			if ( isset( $overrides[ $key ] ) ) {
-				unset( $overrides[ $key ] );
+			if ( '' === $body ) {
+				if ( isset( $overrides[ $key ] ) ) {
+					unset( $overrides[ $key ] );
+				}
+			} else {
+				$overrides[ $key ] = $body;
 			}
-		} else {
-			$overrides[ $key ] = $body;
-		}
 
-		update_option( self::OPTION_PROMO_OVERRIDES, $overrides );
-	}
+			update_option( self::OPTION_PROMO_OVERRIDES, $overrides );
+		}
 
 	/**
 	 * Fetch all promo overrides keyed by vendor-pid.
 	 *
 	 * @return array
 	 */
-	public function get_promo_overrides() {
-		$overrides = get_option( self::OPTION_PROMO_OVERRIDES, array() );
-		return is_array( $overrides ) ? $overrides : array();
-	}
+		public function get_promo_overrides() {
+			$overrides = get_option( self::OPTION_PROMO_OVERRIDES, array() );
+			return is_array( $overrides ) ? $overrides : array();
+		}
 
 	/**
 	 * Fetch a single override.
@@ -317,11 +326,11 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 	 * @param string $pid    Pid.
 	 * @return string
 	 */
-	public function get_promo_override( $vendor, $pid ) {
-		$overrides = $this->get_promo_overrides();
-		$key       = $this->build_vps_key( $vendor, $pid );
-		return isset( $overrides[ $key ] ) ? (string) $overrides[ $key ] : '';
-	}
+		public function get_promo_override( $vendor, $pid ) {
+			$overrides = $this->get_promo_overrides();
+			$key       = $this->build_vps_key( $vendor, $pid );
+			return isset( $overrides[ $key ] ) ? (string) $overrides[ $key ] : '';
+		}
 
 	/**
 	 * Save manual meta overrides.
@@ -330,31 +339,31 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 	 * @param string $pid    Product id.
 	 * @param string $content Meta body.
 	 */
-	public function save_meta_override( $vendor, $pid, $content ) {
-		$overrides = $this->get_meta_overrides();
-		$key       = $this->build_vps_key( $vendor, $pid );
-		$body      = trim( (string) $content );
+		public function save_meta_override( $vendor, $pid, $content ) {
+			$overrides = $this->get_meta_overrides();
+			$key       = $this->build_vps_key( $vendor, $pid );
+			$body      = trim( (string) $content );
 
-		if ( '' === $body ) {
-			if ( isset( $overrides[ $key ] ) ) {
-				unset( $overrides[ $key ] );
+			if ( '' === $body ) {
+				if ( isset( $overrides[ $key ] ) ) {
+					unset( $overrides[ $key ] );
+				}
+			} else {
+				$overrides[ $key ] = $body;
 			}
-		} else {
-			$overrides[ $key ] = $body;
-		}
 
-		update_option( self::OPTION_META_OVERRIDES, $overrides );
-	}
+			update_option( self::OPTION_META_OVERRIDES, $overrides );
+		}
 
 	/**
 	 * Fetch meta overrides map.
 	 *
 	 * @return array
 	 */
-	public function get_meta_overrides() {
-		$overrides = get_option( self::OPTION_META_OVERRIDES, array() );
-		return is_array( $overrides ) ? $overrides : array();
-	}
+		public function get_meta_overrides() {
+			$overrides = get_option( self::OPTION_META_OVERRIDES, array() );
+			return is_array( $overrides ) ? $overrides : array();
+		}
 
 	/**
 	 * Fetch single meta override.
@@ -363,11 +372,11 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 	 * @param string $pid    Product id.
 	 * @return string
 	 */
-	public function get_meta_override( $vendor, $pid ) {
-		$overrides = $this->get_meta_overrides();
-		$key       = $this->build_vps_key( $vendor, $pid );
-		return isset( $overrides[ $key ] ) ? (string) $overrides[ $key ] : '';
-	}
+		public function get_meta_override( $vendor, $pid ) {
+			$overrides = $this->get_meta_overrides();
+			$key       = $this->build_vps_key( $vendor, $pid );
+			return isset( $overrides[ $key ] ) ? (string) $overrides[ $key ] : '';
+		}
 
 		/**
 		 * Build consistent vendor-pid key.
@@ -394,29 +403,29 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		 *
 		 * @return array
 		 */
-	public function get_promo_cache() {
-		$data = get_option( self::OPTION_PROMO_CACHE, array() );
-		return is_array( $data ) ? $data : array();
-	}
+		public function get_promo_cache() {
+			$data = get_option( self::OPTION_PROMO_CACHE, array() );
+			return is_array( $data ) ? $data : array();
+		}
 
 	/**
 	 * Persist formatted meta cache.
 	 *
 	 * @param array $data Cache payload.
 	 */
-	public function save_meta_cache( $data ) {
-		update_option( self::OPTION_META_CACHE, $data );
-	}
+		public function save_meta_cache( $data ) {
+			update_option( self::OPTION_META_CACHE, $data );
+		}
 
 	/**
 	 * Fetch formatted meta cache.
 	 *
 	 * @return array
 	 */
-	public function get_meta_cache() {
-		$data = get_option( self::OPTION_META_CACHE, array() );
-		return is_array( $data ) ? $data : array();
-	}
+		public function get_meta_cache() {
+			$data = get_option( self::OPTION_META_CACHE, array() );
+			return is_array( $data ) ? $data : array();
+		}
 
 	/**
 	 * Persist latest VPS snapshot.
@@ -542,6 +551,264 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		 */
 		public function save_extra_css( $css ) {
 			update_option( self::OPTION_EXTRA_CSS, (string) $css );
+		}
+
+		/**
+		 * Return log path.
+		 *
+		 * @return string
+		 */
+		public function get_log_path() {
+			return $this->log_path;
+		}
+
+		/**
+		 * Read stored logs (applies pruning).
+		 *
+		 * @return array
+		 */
+		public function get_logs() {
+			$logs = $this->read_log_entries();
+			return $this->prune_and_save_logs( $logs );
+		}
+
+		/**
+		 * Append a log entry and prune based on config.
+		 *
+		 * @param string $level   Level (info|error|success).
+		 * @param string $message Message body.
+		 * @return array
+		 */
+		public function append_log( $level, $message ) {
+			$logs   = $this->read_log_entries();
+			$logs[] = array(
+				'ts'      => time(),
+				'level'   => $level,
+				'message' => $message,
+			);
+
+			return $this->prune_and_save_logs( $logs );
+		}
+
+		/**
+		 * Apply pruning rules then persist logs.
+		 *
+		 * @param array $logs Raw entries.
+		 * @return array
+		 */
+		protected function prune_and_save_logs( $logs ) {
+			$settings = $this->get_log_settings();
+			$logs     = $this->apply_time_limit( $logs, $settings['time_limit'] );
+			$logs     = $this->apply_size_limit( $logs, $settings['size_limit'] );
+			$this->write_logs( $logs );
+			return $logs;
+		}
+
+		/**
+		 * Load raw logs from file.
+		 *
+		 * @return array
+		 */
+		protected function read_log_entries() {
+			if ( ! file_exists( $this->log_path ) ) {
+				return array();
+			}
+
+			$lines = file( $this->log_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+			if ( ! $lines ) {
+				return array();
+			}
+
+			$result = array();
+			foreach ( $lines as $line ) {
+				$decoded = json_decode( $line, true );
+				if ( isset( $decoded['ts'], $decoded['message'], $decoded['level'] ) ) {
+					$result[] = $decoded;
+				}
+			}
+
+			return $result;
+		}
+
+		/**
+		 * Persist logs to disk.
+		 *
+		 * @param array $logs Log entries.
+		 */
+		protected function write_logs( $logs ) {
+			if ( empty( $logs ) ) {
+				if ( file_exists( $this->log_path ) ) {
+					file_put_contents( $this->log_path, '' );
+				}
+				return;
+			}
+
+			$body = array();
+			foreach ( $logs as $entry ) {
+				$body[] = wp_json_encode(
+					array(
+						'ts'      => isset( $entry['ts'] ) ? (int) $entry['ts'] : time(),
+						'level'   => isset( $entry['level'] ) ? (string) $entry['level'] : 'info',
+						'message' => isset( $entry['message'] ) ? (string) $entry['message'] : '',
+					)
+				);
+			}
+
+			$this->write_file( $this->log_path, implode( "\n", $body ) );
+		}
+
+		/**
+		 * Extract log-related settings from config.
+		 *
+		 * @return array
+		 */
+		public function get_log_settings() {
+			$config = $this->get_config();
+			$log    = isset( $config['log'] ) && is_array( $config['log'] ) ? $config['log'] : array();
+
+			return array(
+				'size_limit' => isset( $log['log_size_limit'] ) ? $this->parse_size_limit( $log['log_size_limit'] ) : null,
+				'time_limit' => isset( $log['log_time_limit'] ) ? $this->parse_time_limit( $log['log_time_limit'] ) : null,
+			);
+		}
+
+		/**
+		 * Parse human readable size (supports K/M/G).
+		 *
+		 * @param string $raw Raw value.
+		 * @return int|null
+		 */
+		protected function parse_size_limit( $raw ) {
+			$raw = trim( (string) $raw );
+			if ( '' === $raw ) {
+				return null;
+			}
+
+			if ( ! preg_match( '/^([0-9]+)([kmg])?b?$/i', $raw, $matches ) ) {
+				return null;
+			}
+
+			$value = (int) $matches[1];
+			$unit  = isset( $matches[2] ) ? strtolower( $matches[2] ) : '';
+			switch ( $unit ) {
+				case 'g':
+					return $value * 1024 * 1024 * 1024;
+				case 'm':
+					return $value * 1024 * 1024;
+				case 'k':
+					return $value * 1024;
+				default:
+					return $value;
+			}
+		}
+
+		/**
+		 * Parse human friendly time (s/h/d/w/m/y; m=month).
+		 *
+		 * @param string $raw Raw value.
+		 * @return int|null
+		 */
+		protected function parse_time_limit( $raw ) {
+			$raw = strtolower( trim( (string) $raw ) );
+			if ( '' === $raw ) {
+				return null;
+			}
+
+			if ( ! preg_match( '/^([0-9]+)([shdwmy])$/', $raw, $matches ) ) {
+				return null;
+			}
+
+			$value = (int) $matches[1];
+			$unit  = $matches[2];
+			switch ( $unit ) {
+				case 's':
+					return $value;
+				case 'h':
+					return $value * HOUR_IN_SECONDS;
+				case 'd':
+					return $value * DAY_IN_SECONDS;
+				case 'w':
+					return $value * WEEK_IN_SECONDS;
+				case 'm':
+					return $value * DAY_IN_SECONDS * 30; // treat m as month (approx).
+				case 'y':
+					return $value * DAY_IN_SECONDS * 365;
+				default:
+					return null;
+			}
+		}
+
+		/**
+		 * Drop entries older than limit.
+		 *
+		 * @param array    $logs  Entries.
+		 * @param int|null $limit Seconds.
+		 * @return array
+		 */
+		protected function apply_time_limit( $logs, $limit ) {
+			if ( null === $limit || $limit <= 0 ) {
+				return $logs;
+			}
+
+			$threshold = time() - $limit;
+			return array_values(
+				array_filter(
+					$logs,
+					function ( $entry ) use ( $threshold ) {
+						return isset( $entry['ts'] ) && (int) $entry['ts'] >= $threshold;
+					}
+				)
+			);
+		}
+
+		/**
+		 * Trim oldest entries to fit size limit.
+		 *
+		 * @param array    $logs  Entries.
+		 * @param int|null $limit Bytes.
+		 * @return array
+		 */
+		protected function apply_size_limit( $logs, $limit ) {
+			if ( null === $limit || $limit <= 0 ) {
+				return $logs;
+			}
+
+			// Keep trimming oldest until size fits.
+			while ( count( $logs ) > 1 && $this->estimate_logs_size( $logs ) > $limit ) {
+				array_shift( $logs );
+			}
+
+			// If still too large, keep the last entry only.
+			if ( $this->estimate_logs_size( $logs ) > $limit && ! empty( $logs ) ) {
+				$logs = array( end( $logs ) );
+			}
+
+			return array_values( $logs );
+		}
+
+		/**
+		 * Approximate serialized size (JSON lines).
+		 *
+		 * @param array $logs Entries.
+		 * @return int
+		 */
+		protected function estimate_logs_size( $logs ) {
+			$total = 0;
+			foreach ( $logs as $entry ) {
+				$total += strlen(
+					wp_json_encode(
+						array(
+							'ts'      => isset( $entry['ts'] ) ? (int) $entry['ts'] : time(),
+							'level'   => isset( $entry['level'] ) ? (string) $entry['level'] : 'info',
+							'message' => isset( $entry['message'] ) ? (string) $entry['message'] : '',
+						)
+					)
+				);
+			}
+
+			// Add newline separators.
+			$total += max( 0, count( $logs ) - 1 );
+			return $total;
 		}
 	}
 }

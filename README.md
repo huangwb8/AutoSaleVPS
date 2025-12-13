@@ -1,5 +1,7 @@
 # AutoSaleVPS
 
+[中文版说明](README_ZH.md)
+
 AutoSaleVPS is a WordPress plugin backed by large language models. It targets products that expose predictable URL patterns (affiliate ID + product ID, such as VPS plans) and it can:
 
 - Parse `config/config.toml` for every vendor + PID and render promotion cards automatically.
@@ -91,6 +93,18 @@ Key fields:
 - `url.<vendor>.valid_interval_time`: seconds between full inspection cycles.
 - `url.<vendor>.valid_vps_time`: random wait range ("5-10" -> 5 to 10 seconds) between plan checks.
 - `vps.<vendor>.<pid>`: plan definition; `human_comment` is merged with LLM output for copy.
+- `log`: optional log retention rules; see below.
+
+#### Log retention (optional)
+
+```toml
+[log]
+log_size_limit = '2M' # Supports K/M/G; trims oldest entries once the file exceeds this size
+log_time_limit = '1m' # Supports s/h/d/w/m(~30 days)/y; drops entries older than this window
+```
+
+- Each limit works independently; when both are set, both apply, and the stricter result wins.
+- Logs are stored at `wp-content/uploads/autosalevps/autosalevps.log`; only admins can view them via the log panel.
 
 ### `model.toml`
 

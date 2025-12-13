@@ -21,6 +21,12 @@ export interface DiagnosticsResult {
   llm: { ok: boolean; message: string };
 }
 
+export interface LogEntry {
+  ts: number;
+  level: 'info' | 'error' | 'success';
+  message: string;
+}
+
 export class ASVRestClient {
   private baseUrl: string;
   private nonce: string;
@@ -144,6 +150,17 @@ export class ASVRestClient {
     return this.request('/design', {
       method: 'POST',
       body: JSON.stringify({ extra_css: extraCss })
+    });
+  }
+
+  fetchLogs(): Promise<{ logs: LogEntry[] }> {
+    return this.request('/logs');
+  }
+
+  appendLog(message: string, level: LogEntry['level'] = 'info') {
+    return this.request<{ logs: LogEntry[] }>('/logs', {
+      method: 'POST',
+      body: JSON.stringify({ message, level })
     });
   }
 }

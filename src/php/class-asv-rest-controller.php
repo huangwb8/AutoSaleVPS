@@ -214,6 +214,23 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 					'permission_callback' => array( $this, 'can_manage' ),
 				)
 			);
+
+			register_rest_route(
+				self::NAMESPACE_SLUG,
+				'/logs',
+				array(
+					array(
+						'methods'  => WP_REST_Server::READABLE,
+						'callback' => array( $this, 'get_logs' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+					array(
+						'methods'  => WP_REST_Server::CREATABLE,
+						'callback' => array( $this, 'append_log' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+				)
+			);
 		}
 
 		/**
@@ -583,6 +600,45 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 						'message' => is_wp_error( $network ) ? $network->get_error_message() : '连接正常',
 					),
 					'llm' => $llm_status,
+				)
+			);
+		}
+
+		/**
+		 * Return persisted logs.
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function get_logs() {
+			return rest_ensure_response(
+				array(
+					'logs' => $this->repository->get_logs(),
+				)
+			);
+		}
+
+		/**
+		 * Append a log entry.
+		 *
+		 * @param WP_REST_Request $request Request.
+		 * @return WP_REST_Response|WP_Error
+		 */
+		public function append_log( $request ) {
+			$level = sanitize_key( (string) $request->get_param( 'level' ) );
+			if ( ! in_array( $level, array( 'info', 'error', 'success' ), true ) ) {
+				$level = 'info';
+			}
+
+			$message = sanitize_textarea_field( (string) $request->get_param( 'message' ) );
+			if ( '' === trim( $message ) ) {
+				return new WP_Error( 'invalid_message', '日志内容不能为空', array( 'status' => 400 ) );
+			}
+
+			$logs = $this->repository->append_log( $level, $message );
+
+			return rest_ensure_response(
+				array(
+					'logs' => $logs,
 				)
 			);
 		}
