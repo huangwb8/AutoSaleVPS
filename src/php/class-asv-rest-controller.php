@@ -145,7 +145,8 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 					array(
 						'methods'  => WP_REST_Server::READABLE,
 						'callback' => array( $this, 'get_design_settings' ),
-						'permission_callback' => array( $this, 'can_manage' ),
+						// Extra CSS is safe to expose for read so visitors can pick up style updates without refetching VPS data.
+						'permission_callback' => '__return_true',
 					),
 					array(
 						'methods'  => WP_REST_Server::CREATABLE,

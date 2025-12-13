@@ -140,6 +140,10 @@ export class ASVApp {
     this.attachTimezone();
     this.attachButtons();
     this.loadVpsCards(true);
+    // Visitors also fetch latest extra CSS so style updates apply without触发 VPS 刷新。
+    if (!this.bootstrap.isAdmin) {
+      this.loadExtraCss();
+    }
 
     if (this.bootstrap.isAdmin) {
       this.prepareModals();
