@@ -1,13 +1,13 @@
-# AutoSaleVPS
-
 <div align="center">
+
+# AutoSaleVPS
 
 [![版本](https://img.shields.io/badge/版本-0.1.0-blue.svg)](AutoSaleVPS.zip)
 [![运行环境](https://img.shields.io/badge/平台-WordPress%20%7C%20PHP%208.1%2B%20%7C%20Node%2018%2B-lightgrey.svg)](#%E5%BF%85%E8%A6%81%E7%8E%AF%E5%A2%83--%E4%BB%93%E5%BA%93%E7%BB%93%E6%9E%84)
 [![构建](https://img.shields.io/badge/%E6%9E%84%E5%BB%BA-Vite%20%2B%20TypeScript-orange.svg)](https://vitejs.dev/)
 [![下载](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-AutoSaleVPS.zip-brightgreen.svg)](AutoSaleVPS.zip)
 
-[English](README.md) | 中文 | [更新日志](version.md)
+[English](README.md) | 中文 | [更新日志](log.md)
 
 <strong>基于 LLM 的 WordPress VPS 推广/巡检/配置管理插件。</strong>
 

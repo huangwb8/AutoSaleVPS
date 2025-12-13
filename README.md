@@ -7,7 +7,7 @@
 [![Built with](https://img.shields.io/badge/built%20with-Vite%20%2B%20TypeScript-orange.svg)](https://vitejs.dev/)
 [![Package](https://img.shields.io/badge/download-AutoSaleVPS.zip-brightgreen.svg)](AutoSaleVPS.zip)
 
-English | [中文](README_ZH.md) | [Changelog](version.md)
+English | [中文](README_ZH.md) | [Changelog](log.md)
 
 <strong>LLM-powered WordPress plugin for VPS promotion, validation, and config management.</strong>
 
