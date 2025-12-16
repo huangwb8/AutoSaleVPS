@@ -10,6 +10,7 @@ require_once __DIR__ . '/class-asv-sale-parser.php';
 require_once __DIR__ . '/class-asv-availability-service.php';
 require_once __DIR__ . '/class-asv-promo-service.php';
 require_once __DIR__ . '/class-asv-meta-service.php';
+require_once __DIR__ . '/class-asv-cron-scheduler.php';
 
 if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 	class ASV_REST_Controller {
@@ -51,6 +52,13 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		protected $meta;
 
 		/**
+		 * Cron scheduler.
+		 *
+		 * @var ASV_Cron_Scheduler
+		 */
+		protected $cron;
+
+		/**
 		 * Constructor.
 		 *
 		 * @param ASV_Config_Repository    $repository Repo.
@@ -58,13 +66,15 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		 * @param ASV_Availability_Service $availability Availability helper.
 		 * @param ASV_Promo_Service        $promo Promo helper.
 		 * @param ASV_Meta_Service         $meta  Meta helper.
+		 * @param ASV_Cron_Scheduler       $cron  Cron scheduler.
 		 */
-		public function __construct( $repository, $parser, $availability, $promo, $meta ) {
+		public function __construct( $repository, $parser, $availability, $promo, $meta, $cron = null ) {
 			$this->repository  = $repository;
 			$this->parser      = $parser;
 			$this->availability = $availability;
 			$this->promo       = $promo;
 			$this->meta        = $meta;
+			$this->cron        = $cron;
 		}
 
 		/**
@@ -228,6 +238,24 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 					array(
 						'methods'  => WP_REST_Server::CREATABLE,
 						'callback' => array( $this, 'append_log' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+				)
+			);
+
+			// Cron management routes
+			register_rest_route(
+				self::NAMESPACE_SLUG,
+				'/cron',
+				array(
+					array(
+						'methods'  => WP_REST_Server::READABLE,
+						'callback' => array( $this, 'get_cron_status' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+					array(
+						'methods'  => WP_REST_Server::CREATABLE,
+						'callback' => array( $this, 'manage_cron' ),
 						'permission_callback' => array( $this, 'can_manage' ),
 					),
 				)
@@ -659,6 +687,75 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			}
 
 			return null;
+		}
+
+		/**
+		 * Get cron status.
+		 *
+		 * @return WP_REST_Response
+		 */
+		public function get_cron_status() {
+			if ( ! $this->cron ) {
+				return rest_ensure_response(
+					array(
+						'active' => false,
+						'next_run' => null,
+						'message' => 'Cron scheduler not initialized',
+					)
+				);
+			}
+
+			$next_run = $this->cron->get_next_scheduled();
+			return rest_ensure_response(
+				array(
+					'active' => $this->cron->is_cron_active(),
+					'next_run' => $next_run ? date( 'Y-m-d H:i:s', $next_run ) : null,
+					'message' => $this->cron->is_cron_active() ? 'Cron 任务已激活' : 'Cron 任务未激活',
+				)
+			);
+		}
+
+		/**
+		 * Manage cron job (start/stop/reschedule).
+		 *
+		 * @param WP_REST_Request $request Request.
+		 * @return WP_REST_Response|WP_Error
+		 */
+		public function manage_cron( $request ) {
+			if ( ! $this->cron ) {
+				return new WP_Error( 'cron_not_initialized', 'Cron scheduler not initialized', array( 'status' => 500 ) );
+			}
+
+			$action = $request->get_param( 'action' );
+			$interval = $request->get_param( 'interval' ) ?: 'hourly';
+
+			switch ( $action ) {
+				case 'start':
+					$this->cron->maybe_schedule_cron();
+					$message = 'Cron 任务已启动';
+					break;
+
+				case 'stop':
+					$this->cron->unschedule_cron();
+					$message = 'Cron 任务已停止';
+					break;
+
+				case 'reschedule':
+					$this->cron->reschedule_cron( $interval );
+					$message = sprintf( 'Cron 任务已重新安排，间隔：%s', $interval );
+					break;
+
+				default:
+					return new WP_Error( 'invalid_action', 'Invalid action', array( 'status' => 400 ) );
+			}
+
+			return rest_ensure_response(
+				array(
+					'success' => true,
+					'message' => $message,
+					'next_run' => $this->cron->get_next_scheduled() ? date( 'Y-m-d H:i:s', $this->cron->get_next_scheduled() ) : null,
+				)
+			);
 		}
 
 		/**

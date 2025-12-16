@@ -198,11 +198,13 @@ export class ASVApp {
       addKeyBtn.dataset.action = 'add-key';
       const cssBtn = this.createButton('额外CSS', '打开额外 CSS 编辑器');
       cssBtn.dataset.action = 'edit-css';
+      const cronBtn = this.createButton('定时任务管理', '管理后台定时任务');
+      cronBtn.dataset.action = 'manage-cron';
       const checkBtn = this.createButton('检查可用性', '运行诊断');
       checkBtn.dataset.action = 'diagnostics';
       const statusBtn = this.createButton('查看VPS状态', '刷新 VPS 列表');
       statusBtn.dataset.action = 'check-vps';
-      actions.append(editConfigBtn, editModelBtn, addKeyBtn, cssBtn);
+      actions.append(editConfigBtn, editModelBtn, addKeyBtn, cssBtn, cronBtn);
       secondaryActions.append(checkBtn, statusBtn);
 
       const timezoneWrap = document.createElement('div');
@@ -331,6 +333,9 @@ export class ASVApp {
           break;
         case 'diagnostics':
           this.runDiagnostics();
+          break;
+        case 'manage-cron':
+          this.showCronManager();
           break;
         default:
           break;
@@ -814,24 +819,12 @@ export class ASVApp {
   }
 
   private scheduleValidation() {
-    if (!this.bootstrap.isAdmin || !this.currentConfig) {
-      return;
-    }
-
+    // 客户端定时验证已移除，现在使用后端 WordPress Cron
+    // 保留此方法以避免错误，但不再执行任何操作
     if (this.availabilityTimer) {
       window.clearInterval(this.availabilityTimer);
+      this.availabilityTimer = undefined;
     }
-
-    const definitions = this.currentConfig.listVps();
-    if (!definitions.length) {
-      return;
-    }
-
-    const intervals = definitions.map((item) => this.currentConfig?.getIntervalSeconds(item.vendor) ?? 86400);
-    const nextInterval = Math.max(60, Math.min(...intervals));
-    this.availabilityTimer = window.setInterval(() => {
-      this.triggerAvailabilitySweep('定时巡检');
-    }, nextInterval * 1000);
   }
 
   private triggerAvailabilitySweep(reason: string) {
@@ -988,5 +981,118 @@ export class ASVApp {
       const checkedAt = checkedAtRaw ? Number(checkedAtRaw) : null;
       ts.textContent = this.formatCheckedAt(Number.isFinite(checkedAt) ? checkedAt : null);
     });
+  }
+
+  private showCronManager() {
+    this.log('正在加载定时任务状态...');
+    this.fetchCronStatus();
+  }
+
+  private async fetchCronStatus() {
+    try {
+      const response = await this.rest.fetch('/cron');
+      const cronData = await response.json();
+      this.renderCronModal(cronData);
+    } catch (error) {
+      this.log(`获取定时任务状态失败：${(error as Error).message}`, 'error');
+    }
+  }
+
+  private renderCronModal(cronData: { active: boolean; next_run: string | null; message: string }) {
+    const modal = new ASVModal('定时任务管理', this.createCronModalContent(cronData));
+    modal.mount(this.root);
+    modal.show();
+  }
+
+  private createCronModalContent(cronData: { active: boolean; next_run: string | null; message: string }) {
+    const container = document.createElement('div');
+    container.className = 'asv-modal__content';
+
+    // 状态显示
+    const statusDiv = document.createElement('div');
+    statusDiv.className = 'asv-cron-status';
+    statusDiv.innerHTML = `
+      <p><strong>状态：</strong><span class="${cronData.active ? 'asv-status-active' : 'asv-status-inactive'}">
+        ${cronData.active ? '✓ 已激活' : '✗ 未激活'}
+      </span></p>
+      <p><strong>说明：</strong>${cronData.message}</p>
+      ${cronData.next_run ? `<p><strong>下次运行：</strong>${cronData.next_run}</p>` : '<p><strong>下次运行：</strong>未计划</p>'}
+    `;
+    container.appendChild(statusDiv);
+
+    // 操作按钮
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'asv-cron-actions';
+
+    if (cronData.active) {
+      const stopBtn = this.createButton('停止定时任务', '停止所有后台 VPS 检查');
+      stopBtn.addEventListener('click', () => this.manageCron('stop'));
+      actionsDiv.appendChild(stopBtn);
+    } else {
+      const startBtn = this.createButton('启动定时任务', '开始后台 VPS 检查');
+      startBtn.addEventListener('click', () => this.manageCron('start'));
+      actionsDiv.appendChild(startBtn);
+    }
+
+    // 重新安排按钮
+    const rescheduleDiv = document.createElement('div');
+    rescheduleDiv.className = 'asv-cron-reschedule';
+    rescheduleDiv.innerHTML = `
+      <p><strong>重新安排间隔：</strong></p>
+      <div class="asv-cron-interval">
+        <select id="cron-interval">
+          <option value="hourly">每小时</option>
+          <option value="twicedaily">每天两次</option>
+          <option value="daily">每天</option>
+        </select>
+        <button class="asv-btn">更新</button>
+      </div>
+    `;
+
+    const rescheduleBtn = rescheduleDiv.querySelector('button');
+    const intervalSelect = rescheduleDiv.querySelector('#cron-interval') as HTMLSelectElement;
+    rescheduleBtn?.addEventListener('click', () => {
+      this.manageCron('reschedule', intervalSelect.value);
+    });
+
+    container.appendChild(actionsDiv);
+    container.appendChild(rescheduleDiv);
+
+    // 提示信息
+    const noteDiv = document.createElement('div');
+    noteDiv.className = 'asv-cron-note';
+    noteDiv.innerHTML = `
+      <p><em>注意：定时任务在服务器后台运行，不需要保持页面打开。VPS 检查间隔由 config.toml 中的 valid_interval_time 控制。</em></p>
+    `;
+    container.appendChild(noteDiv);
+
+    return container;
+  }
+
+  private async manageCron(action: string, interval?: string) {
+    try {
+      const response = await this.rest.fetch('/cron', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action, interval }),
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        this.log(result.message, 'success');
+        // 关闭当前 modal 并重新打开以刷新状态
+        const modal = document.querySelector('.asv-modal');
+        if (modal) {
+          modal.remove();
+        }
+        this.fetchCronStatus();
+      } else {
+        this.log(`操作失败：${result.message}`, 'error');
+      }
+    } catch (error) {
+      this.log(`定时任务操作失败：${(error as Error).message}`, 'error');
+    }
   }
 }

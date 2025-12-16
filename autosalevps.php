@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AutoSaleVPS
  * Description: 基于 LLM 的 VPS 推广助手，提供配置管理、可用性校验与前端展示。
- * Version: 0.1.0
+ * Version: 0.2.0
  * Author: Bensz Conan
  */
 
@@ -16,13 +16,14 @@ require_once __DIR__ . '/src/php/class-asv-availability-service.php';
 require_once __DIR__ . '/src/php/class-asv-promo-service.php';
 require_once __DIR__ . '/src/php/class-asv-meta-service.php';
 require_once __DIR__ . '/src/php/class-asv-rest-controller.php';
+require_once __DIR__ . '/src/php/class-asv-cron-scheduler.php';
 
 if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 	class AutoSaleVPS_Plugin {
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '0.1.0';
+		const VERSION = '0.2.0';
 
 		/**
 		 * Repository.
@@ -37,6 +38,13 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 		 * @var ASV_REST_Controller
 		 */
 		protected $rest_controller;
+
+		/**
+		 * Cron scheduler.
+		 *
+		 * @var ASV_Cron_Scheduler
+		 */
+		protected $cron_scheduler;
 
 		/**
 		 * Bootstrap plugin.
@@ -56,12 +64,16 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 			$availability = new ASV_Availability_Service( $this->repository );
 			$promo        = new ASV_Promo_Service( $this->repository );
 			$meta         = new ASV_Meta_Service( $this->repository );
-			$this->rest_controller = new ASV_REST_Controller( $this->repository, $parser, $availability, $promo, $meta );
+			$this->cron_scheduler = new ASV_Cron_Scheduler( $this->repository, $availability );
+			$this->rest_controller = new ASV_REST_Controller( $this->repository, $parser, $availability, $promo, $meta, $this->cron_scheduler );
 
 			add_action( 'init', array( $this, 'register_shortcode' ) );
 			add_action( 'init', array( $this, 'register_assets' ) );
 			add_action( 'rest_api_init', array( $this->rest_controller, 'register_routes' ) );
 			add_action( 'admin_menu', array( $this, 'register_admin_page' ) );
+
+			// 注册 cron 任务
+			$this->cron_scheduler->register();
 		}
 
 		/**
@@ -183,8 +195,32 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 				copy( $fallback, $target );
 			}
 		}
+
+		/**
+		 * Plugin activation hook.
+		 */
+		public function on_activation() {
+			// 激活时安排 cron 任务
+			if ( $this->cron_scheduler ) {
+				$this->cron_scheduler->schedule_cron();
+			}
+		}
+
+		/**
+		 * Plugin deactivation hook.
+		 */
+		public function on_deactivation() {
+			// 停用时清理 cron 任务
+			if ( $this->cron_scheduler ) {
+				$this->cron_scheduler->unschedule_cron();
+			}
+		}
 	}
 }
 
 $autosale_plugin = new AutoSaleVPS_Plugin();
 $autosale_plugin->register();
+
+// 插件激活和停用钩子
+register_activation_hook( __FILE__, array( $autosale_plugin, 'on_activation' ) );
+register_deactivation_hook( __FILE__, array( $autosale_plugin, 'on_deactivation' ) );
