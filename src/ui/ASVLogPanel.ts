@@ -28,7 +28,7 @@ export class ASVLogPanel {
       return;
     }
 
-    const ordered = [...entries].sort((a, b) => a.ts - b.ts);
+    const ordered = [...entries].sort((a, b) => b.ts - a.ts);
     ordered.forEach((entry) => {
       this.renderRow(entry.message, entry.level, entry.ts);
     });
@@ -43,7 +43,14 @@ export class ASVLogPanel {
     const row = document.createElement('div');
     row.className = `asv-log-row asv-log-${level}`;
     row.textContent = `[${time}] ${message}`;
-    this.node.prepend(row);
+
+    // 如果有历史时间戳（从数据库加载的日志），使用 append
+    // 如果没有时间戳（实时日志），使用 prepend
+    if (timestamp) {
+      this.node.appendChild(row);
+    } else {
+      this.node.prepend(row);
+    }
   }
 
   private formatTime(timestamp?: number) {
