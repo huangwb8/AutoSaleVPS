@@ -1,3 +1,17 @@
+# 发布新版本
+
+```
+repo_version=1.0.0
+
+- 如果 {repo_version} 不是 github项目 huangwb8/AutoSaleVPS 的最新版本，则
+  - git-commit skill保存变更; 只用一个commit概括所有更新。 commit要新增 tag 为 v{repo_version}，并且commit信息（简体中文为主）要提到更新版本（写commit信息的时候，不能仅根据最近1次commit； 而是版本间所有commit的总结的综合形成版本特异性commit信息）
+  - git-publish-release skill 发布为一个release到github仓库
+  - 通过 ssh rn2 登陆服务器，进入 /docker/wordpress，把插件更新到站点。
+  - 汇报 release 链接、镜像地址、完整发布产物清单，以及首个 x86 可用耗时和完整发布总耗时。
+  - repo的 README 与源代码对齐（基于 write-readme skill进行优化）
+  - docs 里的文档（如果有）也必须与repo的最新源代码对齐
+```
+
 # 业务
 
 基于html/css/js构建一个基于LLM的wordpress插件，可以帮助用户基于自己的aff信息在WordPress博客推广VPS。插件名为`AutoSaleVPS`。必要时你可以用SearXNG插件联网搜索来辅助你的任务。
