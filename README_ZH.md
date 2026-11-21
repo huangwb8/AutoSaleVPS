@@ -1,190 +1,61 @@
-<div align="center">
+<h1 align="center">AutoSaleVPS</h1>
 
-# AutoSaleVPS
+<p align="center">
+  <a href="https://github.com/huangwb8/AutoSaleVPS/releases/latest">下载插件</a> ·
+  <a href="docs/browser-fetching.md">浏览器采集</a> ·
+  <a href="README.md">English</a>
+</p>
 
-[![版本](https://img.shields.io/github/v/tag/huangwb8/AutoSaleVPS?label=%E7%89%88%E6%9C%AC&sort=semver)](AutoSaleVPS.zip)
-[![运行环境](https://img.shields.io/badge/平台-WordPress%20%7C%20PHP%208.1%2B%20%7C%20Node%2018%2B-lightgrey.svg)](#%E5%BF%85%E8%A6%81%E7%8E%AF%E5%A2%83--%E4%BB%93%E5%BA%93%E7%BB%93%E6%9E%84)
-[![构建](https://img.shields.io/badge/%E6%9E%84%E5%BB%BA-Vite%20%2B%20TypeScript-orange.svg)](https://vitejs.dev/)
-[![下载](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-AutoSaleVPS.zip-brightgreen.svg)](AutoSaleVPS.zip)
+AutoSaleVPS 是一个 WordPress 插件，把 VPS 商品的规格、库存和推广文案整理成可嵌入页面的商品卡片。管理员可以配置厂商链接、刷新数据和查看日志；访客从 WordPress 已保存的快照读取卡片，打开页面无需现场请求厂商。
 
-[English](README.md) | 中文 | [更新日志](log.md)
+## 快速开始
 
-<strong>基于 LLM 的 WordPress VPS 推广/巡检/配置管理插件。</strong>
+1. 从 [Release](https://github.com/huangwb8/AutoSaleVPS/releases/latest) 下载 `AutoSaleVPS.zip`，在 WordPress 的「插件 → 安装插件 → 上传插件」中安装并启用。已有站点可在上传时选择替换现有插件。
+2. 在后台打开「AutoSaleVPS」，用「编辑VPS配置」填写自己的推广码、商品 PID 和链接。可选：用「编辑模型配置」设置 LLM 服务，再通过「添加KEY」保存密钥；密钥只在鼠标悬停预览图标时显示。
+3. 点击「查看VPS状态」拉取第一份快照，再把短码放到公开页面：
 
-</div>
-AutoSaleVPS 是一个基于WordPress和大语言模型的商品（比如VPS等具有固定链接模式[affiliate ID和product ID]）推广插件，负责：
+   ```text
+   [AutoSaleVPS]
+   ```
 
-- 读取 `config/config.toml` 中的多家商家与 PID，自动生成推广卡片；
-- 通过 `valid_format` 校验商品是否还能下单，并在售罄时高亮提醒；
-- 读取 `model.toml` 中的 LLM 配置，生成推广话术、解析销售页 Meta；
-- 在前台展示访客友好的卡片，在后台提供配置编辑、日志、巡检工具。
+   刷新后应看到商品规格、库存标记和购买按钮。首次还没有快照时，先回后台执行一次刷新。
 
-## 必要环境 & 仓库结构
+## 配置模板
 
-- Node.js 18+、npm（用于构建前端资产）
-- PHP 8.1+、Composer（用于 WordPress 插件依赖）
-- WordPress 6.x 站点
+从 [config/config.toml](config/config.toml) 复制样例，并替换示例推广码和 PID。商品链接 `sale_format` 用于购买按钮；库存和规格只从 `valid_format` 获取。两种模板都需要 `{pid}`，购买链接可用 `{aff}` 插入推广码。
 
-项目遵循以下结构：
+| 配置 | 用途 |
+| --- | --- |
+| `aff.<vendor>.code` | 厂商的推广码。 |
+| `vps.<vendor>.<pid>` | 商品条目，可用 `human_comment` 附上人工说明。 |
+| `url.<vendor>.valid_interval_time` | 后台定时任务判断单项库存何时到期的间隔，单位为秒。 |
+| `url.<vendor>.valid_vps_time` | 同一域名请求的随机间隔，例如 `5-10` 秒。 |
 
-```
-autosalevps.php      # 插件入口（WordPress 根目录下的主文件）
-config/              # 默认的 config.toml 与 model.toml
-src/                 # TypeScript / PHP 源码
-assets/              # Vite 构建出的 main.js / main.css
-scripts/package.mjs  # 打包 ZIP 的脚本
-AutoSaleVPS.zip      # 运行 npm run package 后生成的安装包
-```
+[config/model.toml](config/model.toml) 包含 OpenAI 兼容端点的样例。模型用于生成推广文案、整理规格，也可在正常商品页证据不足时辅助判断库存。站点首次运行时会把 TOML 模板复制到 `wp-content/uploads/autosalevps/`，后续升级保留已有配置；API key 和浏览器服务地址保存在 WordPress 数据库中。
 
-## 使用教程
+## 采集与库存
 
-> 具体见我的博客文章： [Docker系列 WordPress系列 AutoSaleVPS插件](https://blognas.hwb0307.com/linux/docker/6601)
+采集优先走 WordPress HTTP API。遇到验证页或网络失败时，可通过 FlareSolverr 浏览器服务回退；在后台「采集设置」中填写地址，默认值为 `http://asv-browser:8191`。如厂商返回 HTTP 429，插件会等待该域名冷却。安装和故障排查见[浏览器采集指南](docs/browser-fetching.md)。
 
-1. **获取安装包**
-   - 下载仓库或直接使用我们提供的 `AutoSaleVPS.zip`。若你是开发者，可以运行 `npm run package` 生成最新 ZIP。
+只有确认的结果会更新库存。失败会保留上次确认的结果和时间，并显示「待复核」；没有历史结果时显示「待确认」。后台「定时任务管理」可查看、启动、暂停或重排 WP-Cron，页面无需持续打开。日志按最近事件优先显示。
 
-2. **在 WordPress 后台安装插件**
-   - 登录 WP 后台 → 插件 → 安装插件 → 上传插件 → 选择 `AutoSaleVPS.zip` → 安装并启用。
+## 开发与文档
 
-3. **创建展示页面**
-   - 新建一个页面或文章，内容里输入短代码：
-     ```
-     [AutoSaleVPS]
-     ```
-   - 发布后，访客就能看到推广卡片；管理员会额外看到配置按钮与日志面板。
-
-4. **配置 API Key（必需步骤）**
-   - 在含短代码的页面顶部点击「添加KEY」。
-   - 输入 `sk-` 开头的密钥；眼睛图标仅在鼠标悬停时短暂显示内容，鼠标移开立刻隐藏，防止泄露。
-
-5. **导入/修改 TOML 配置**
-   - 点击「编辑 VPS 配置」打开 `config.toml`，在弹窗中粘贴你的推广信息（示例见下节）。
-   - 点击「编辑 模型配置」调整 LLM 服务、模型、提示词。
-   - 每次点击「保存配置」都会立即触发一次全量校验，并在日志面板记录结果。
-
-6. **运行巡检**
-   - 点「检查可用性」会即时测试网络、LLM、以及所有 `valid_format` 链接。
-   - 平时你可以依赖插件的自动巡检：遵循 `valid_interval_time` 周期，并在每个 VPS 之间等待 `valid_vps_time`（随机值）以防访问被判为爬虫。
-
-7. **观察访客界面**
-   - 访客只会看到卡片、推广按钮和 LLM 生成的文案。
-   - 如果某个 VPS 售罄，卡片会变成离线状态，但信息仍可查看。
-
-8. **日志与时区**
-   - 右上角可切换时区（默认北京时间），影响日志时间与巡检日志。
-   - 日志窗会记录配置保存、可用性检测、LLM 调用等关键事件，方便排查。
-
-## 示例配置
-
-### `config.toml`
-
-```toml
-[aff]
-[aff.rn]
-code = '4886'
-
-[url]
-[url.rn]
-sale_format = 'https://my.racknerd.com/aff.php?aff={aff}&pid={pid}'
-valid_format = 'https://my.racknerd.com/cart.php?a=add&pid={pid}'
-valid_interval_time = '172800' # 每 48 小时校验一次
-valid_vps_time = '5-10'        # 每个 VPS 之间随机等待 5-10 秒
-
-[vps]
-[vps.rn.923]
-pid = '923'
-human_comment = '比较基础的一款VPS'
-
-[vps.rn.924]
-pid = '924'
-human_comment = '2025年黑色星期五活动。CPU弱点，但内存还行。预算有限的人推荐选。'
-
-[vps.rn.925]
-pid = '925'
-human_comment = '2025年黑色星期五活动。作为主流机型推荐，内存、CPU、磁盘空间的均衡很好。'
-```
-
-关键字段说明：
-
-- `aff.<厂商>.code`：联盟 ID。
-- `url.<厂商>.sale_format`：前台展示的推广链接模板，支持 `{aff}`、`{pid}` 占位符。
-- `url.<厂商>.valid_format`：**仅用于巡检** 的链接，避免浪费真实推广点击。
-- `url.<厂商>.valid_interval_time`：多久跑一次全量巡检（秒）。
-- `url.<厂商>.valid_vps_time`：单次巡检中不同 VPS 的请求间隔范围（`"5-10"` 表示随机 5~10 秒）。
-- `vps.<厂商>.<pid>`：具体商品配置；`human_comment` 会与 LLM 输出合并为推广语。
-- `log`：日志保留策略（可选）。
-
-#### 日志保留（可选）
-
-```toml
-[log]
-log_size_limit = '2M' # 支持 K/M/G，文件超过该大小会从最旧日志开始裁剪
-log_time_limit = '1m' # 支持 s/h/d/w/m(≈30天)/y，早于该时间窗的日志会被清理
-```
-
-- 两个限制可以单独使用；同时存在时都会生效，最终以“更严格”的裁剪结果为准。
-- 日志文件存放于上传目录 `wp-content/uploads/autosalevps/autosalevps.log`，仅管理员可在前端日志面板查看。
-
-### `model.toml`
-
-```toml
-[model_providers]
-[model_providers.omg]
-base_url = 'https://api.ohmygpt.com/v1'
-model = "gpt-4.1-mini"
-prompt_valid = '''
-你是 AutoSaleVPS 的可卖性审核助手。你将收到一个 JSON，其中包含：
-- vendor / pid / valid_url；
-- HTTP status、精选响应头、正文摘要、HTML 截断片段；
-- initial_state / initial_reason（启发式结论）以及 signals（关键字命中列表）。
-
-请结合所有字段（尤其是 signals 与正文语义）判断该 VPS 是否还可下单，若信息不足可返回 unknown。
-输出要求：
-- 必须是单个 JSON 对象，不能带额外文字。
-- 字段：status(online/offline/unknown)、reason(<=120字，概述证据)、confidence(0~1 可选)，可扩展 evidence 数组列出关键线索。
-- 若检测到“sold out”“out of stock”等负面信号，直接判定 offline；若能确认有购入按钮/库存提示再判定 online。
-
-严格遵守 JSON 输出格式，避免自然语言描述。
-'''
-prompt_vps_info = '基于输入给出一段推销VPS的广告，字数限定在40字左右。推广要求贴合VPS的实际，不能无脑推。从建立博客、AI、RSS、Docker等4个应用场景评估VPS的推荐性。不要添加推广链接，我已经在其它地方展示推广链接。'
-prompt_meta_layout = '请将输入JSON整理成固定的8行中文，依次为：厂商、CPU、内存、存储、带宽、网络、价格、地理位置。每一行必须使用“字段：内容”格式，字段名需与上述完全一致，如信息缺失则填“-”，不要输出其他文字。'
-```
-
-当你点击「保存配置」或执行巡检时，插件会按照这里的 `base_url` 和 `model` 调用 LLM 来：
-
-- 解析销售页面 HTML，生成规范的元信息；
-- 结合 `human_comment` 与元信息产出 30 字左右的中文推广语；
-- 依据 `prompt_valid` 的指令判断该 VPS 是否仍有库存。
-
-## 常见操作 & 提示
-
-- **不要把 `sale_format` 用于可用性验证**：插件只会用 `valid_format`，保证真实推广链接不会被巡检误点。
-- **售罄状态**：如果 LLM/规则识别到包含 “Out of Stock”“Oops…” 等字样，或返回 `FALSE`，卡片会标红并在日志中记录。
-- **多商家支持**：`rn` 只是示例命名；可以用 `vps.hetzner.1234`、`vps.hwvps.88` 等形式扩展。
-- **日志截图**：如需手工测试 WordPress 后台行为，请把步骤记录到 `docs/test-notes.md`，方便团队同步。
-
-## 本地开发、构建与打包
+运行插件由 WordPress 和 PHP 提供环境，已在 PHP 8.3 站点验证。开发使用 Node.js 22+、PHP CLI、Composer 和 `zip`；通过 ZIP 安装时不需要这些构建工具。
 
 ```bash
-# 1. 安装依赖
-npm install
+npm ci
 composer install
-
-# 2. 开发模式（提供热更新 UI）
-npm run dev -- --host
-
-# 3. 质量保障
-npm run lint         # ESLint + Stylelint
-npm run test         # Vitest
-composer lint        # PHP_CodeSniffer 等
-
-# 4. 生产构建 & 打包
-npm run build        # 生成 assets/css & assets/js
-npm run package      # 产出 AutoSaleVPS.zip + 带版本号的 ZIP
+npm run lint
+npx tsc --noEmit
+npm run test
+npm run package
 ```
 
-`npm run package` 会：
+`npm run package` 会先构建前端，再生成包含 `AutoSaleVPS/` 目录的 `AutoSaleVPS.zip`。PHP 插件头、运行时版本常量和 `package.json` 的版本必须一致。使用 `npm run dev -- --host` 可启动 Vite；后台接口仍由 WordPress 提供。PHP 风格检查可用 `composer lint`，现有检查状态见[测试记录](docs/test-notes.md)。
 
-1. 自动运行 `npm run build`;
-2. 将 `autosalevps.php`、`assets/`、`config/` 等文件打入 ZIP；
-3. 生成形如 `AutoSaleVPS-v202511291706.zip` 的版本化文件，并复制一份 `AutoSaleVPS.zip` 供上传。
+更多文档：[安全建议](docs/安全建议.md) · [Argon/PJAX 兼容](docs/argon_support.md) · [额外 CSS 示例](docs/额外CSS示例.css) · [多语言计划](docs/多语言支持.md) · [版本记录](log.md)。
+
+## 许可证
+
+[Apache License 2.0](LICENSE)。

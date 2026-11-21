@@ -10,6 +10,8 @@ export interface VpsRecord {
   promo: string;
   promo_source: string;
   available: boolean | null;
+  check_status?: string;
+  attempted_at?: number;
   checked_at: number | null;
   message: string;
   valid_delay: [number, number];
@@ -26,6 +28,19 @@ export interface LogEntry {
   level: 'info' | 'error' | 'success';
   message: string;
 }
+
+export interface BrowserSettings {
+  base_url: string;
+  default_base_url: string;
+}
+
+export interface CronStatus {
+  active: boolean;
+  next_run: string | null;
+  message: string;
+}
+
+export type CronAction = 'start' | 'stop' | 'reschedule';
 
 export class ASVRestClient {
   private baseUrl: string;
@@ -49,7 +64,14 @@ export class ASVRestClient {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || '请求失败');
+      let message = text;
+      try {
+        const error = JSON.parse(text) as { message?: string };
+        if (typeof error.message === 'string') message = error.message;
+      } catch {
+        // Non-JSON errors retain their original message.
+      }
+      throw new Error(message || '请求失败');
     }
 
     if (response.status === 204) {
@@ -61,6 +83,17 @@ export class ASVRestClient {
 
   fetchConfig(): Promise<{ content: string }> {
     return this.request('/config');
+  }
+
+  fetchBrowserSettings(): Promise<BrowserSettings> {
+    return this.request('/browser-settings');
+  }
+
+  saveBrowserSettings(baseUrl: string): Promise<BrowserSettings> {
+    return this.request('/browser-settings', {
+      method: 'POST',
+      body: JSON.stringify({ base_url: baseUrl })
+    });
   }
 
   saveConfig(content: string) {
@@ -97,7 +130,7 @@ export class ASVRestClient {
   }
 
   validateVps(vendor: string, pid: string) {
-    return this.request('/vps/validate', {
+    return this.request<Pick<VpsRecord, 'available' | 'message' | 'checked_at' | 'check_status'>>('/vps/validate', {
       method: 'POST',
       body: JSON.stringify({ vendor, pid })
     });
@@ -150,6 +183,17 @@ export class ASVRestClient {
     return this.request('/design', {
       method: 'POST',
       body: JSON.stringify({ extra_css: extraCss })
+    });
+  }
+
+  fetchCronStatus(): Promise<CronStatus> {
+    return this.request('/cron');
+  }
+
+  manageCron(action: CronAction, interval?: string) {
+    return this.request<{ success: boolean; message: string }>('/cron', {
+      method: 'POST',
+      body: JSON.stringify({ action, interval })
     });
   }
 

@@ -73,6 +73,36 @@ if ( ! class_exists( 'ASV_Config_Repository' ) ) {
 		}
 
 		/**
+		 * Validate URL templates used by configured VPS groups.
+		 *
+		 * @param string $content Config contents.
+		 * @return bool
+		 */
+		public static function valid_url_formats( $content ) {
+			$config = ASV_TOML_Parser::parse( $content );
+			foreach ( (array) ( $config['vps'] ?? array() ) as $vendor => $plans ) {
+				if ( ! is_array( $plans ) || empty( $plans ) ) {
+					continue;
+				}
+				foreach ( array( 'sale_format', 'valid_format' ) as $key ) {
+					$template = $config['url'][ $vendor ][ $key ] ?? '';
+					if ( ! is_string( $template ) || false === strpos( $template, '{pid}' ) ) {
+						return false;
+					}
+					$url   = str_replace( array( '{aff}', '{pid}' ), '1', $template );
+					$parts = wp_parse_url( $url );
+					if ( ! filter_var( $url, FILTER_VALIDATE_URL ) || ! $parts ||
+						! in_array( strtolower( $parts['scheme'] ?? '' ), array( 'http', 'https' ), true ) ||
+						isset( $parts['user'] ) || isset( $parts['pass'] ) ||
+						false !== strpbrk( $url, '{}' ) ) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+
+		/**
 		 * Raw model file.
 		 *
 		 * @return string

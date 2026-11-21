@@ -6,6 +6,7 @@
  */
 
 require_once __DIR__ . '/class-asv-llm-client.php';
+require_once __DIR__ . '/class-asv-page-fetcher.php';
 
 if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 	class ASV_Availability_Service {
@@ -15,14 +16,28 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 		 * @var ASV_Config_Repository
 		 */
 		protected $repository;
+		protected $fetcher;
 
 		/**
 		 * Constructor.
 		 *
 		 * @param ASV_Config_Repository $repository Repository.
 		 */
-		public function __construct( ASV_Config_Repository $repository ) {
+		public function __construct( ASV_Config_Repository $repository, $fetcher = null ) {
 			$this->repository = $repository;
+			$this->fetcher = $fetcher ?? new ASV_Page_Fetcher();
+		}
+
+		/** Keep confirmed stock and its timestamp separate from a failed attempt. */
+		public static function status_record( $result, $previous = array(), $now = null ) {
+			$now = $now ?? time();
+			return array(
+				'available' => null === $result['available'] ? ( $previous['available'] ?? null ) : $result['available'],
+				'checked_at' => null === $result['available'] ? ( $previous['checked_at'] ?? null ) : $now,
+				'attempted_at' => $now,
+				'check_status' => $result['check_status'],
+				'message' => $result['message'],
+			);
 		}
 
 		/**
@@ -36,30 +51,32 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 			$valid_url = isset( $vps['valid_url'] ) ? $vps['valid_url'] : '';
 			if ( empty( $valid_url ) ) {
 				return array(
-					'available' => false,
+					'available' => null,
+					'check_status' => 'unknown',
 					'message'   => 'Missing valid URL',
 				);
 			}
 
-			$response = wp_remote_get( $valid_url, array( 'timeout' => 20 ) );
+			$response = $this->fetcher->fetch( $valid_url, $vps['valid_delay'] ?? array( 5, 10 ) );
 
 			if ( is_wp_error( $response ) ) {
 				return array(
-					'available' => false,
+					'available' => null,
+					'check_status' => $response->get_error_code(),
 					'message'   => $response->get_error_message(),
 				);
 			}
 
-			$body        = wp_remote_retrieve_body( $response );
-			$status_code = (int) wp_remote_retrieve_response_code( $response );
-			$headers     = $this->collect_headers( $response );
+			$body        = $response['body'];
+			$status_code = $response['status'];
+			$headers     = $response['headers'];
 			$scan        = $this->basic_scan( $body );
 			$state       = isset( $scan['state'] ) ? $scan['state'] : 'unknown';
 			$reason      = isset( $scan['reason'] ) && ! empty( $scan['reason'] ) ? $scan['reason'] : 'Waiting for analysis';
 			$llm         = $this->build_llm_client( $provider );
 			$prompt      = $this->build_llm_prompt( $provider );
 
-			if ( $llm->is_ready() && ! empty( $prompt ) ) {
+			if ( 'unknown' === $state && $llm->is_ready() && ! empty( $prompt ) ) {
 				$payload = $this->build_llm_payload( $vps, $status_code, $headers, $body, $scan );
 				$result  = $llm->request( $prompt, $payload );
 				if ( $result['success'] ) {
@@ -80,7 +97,9 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 			}
 
 			return array(
-				'available' => 'online' === $state,
+				'available' => 'unknown' === $state ? null : 'online' === $state,
+				'check_status' => 'unknown' === $state ? 'unknown' : 'ok',
+				'fetch_source' => $response['source'],
 				'message'   => $reason,
 				'raw'       => $body,
 			);
@@ -94,7 +113,8 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 		 */
 		protected function basic_scan( $body ) {
 			$haystack = strtolower( (string) $body );
-			$signals  = $this->extract_signals_from_text( $haystack );
+			$visible = preg_replace( '~<(script|style)\b[^>]*>.*?</\1>~is', '', (string) $body );
+			$signals  = $this->extract_signals_from_text( strtolower( strip_tags( $visible ) ) );
 			foreach ( $signals as $signal ) {
 				if ( 'offline' === $signal['label'] ) {
 					return array(
@@ -114,10 +134,17 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 					);
 				}
 			}
+			if ( false !== strpos( $haystack, 'frmconfigureproduct' ) && false !== strpos( $haystack, 'btncompleteproductconfig' ) ) {
+				return array(
+					'state' => 'online',
+					'reason' => '已取得商品配置页面及继续下单按钮',
+					'signals' => $signals,
+				);
+			}
 
 			if ( empty( trim( $haystack ) ) ) {
 				return array(
-					'state'   => 'offline',
+					'state'   => 'unknown',
 					'reason'  => 'Empty page body',
 					'signals' => $signals,
 				);
@@ -181,6 +208,7 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 		 */
 		protected function build_llm_prompt( $provider ) {
 			$base_prompt = '你是一名VPS可卖性监控助手。你会收到一个JSON，里面包含厂商、PID、HTTP状态、页面摘要以及启发式信号。请结合所有信息判断该VPS是否还能下单。输出必须是JSON，字段如下：status("online"|"offline"|"unknown"), reason(<=120字), confidence(0-1之间的小数，可选)，evidence(可选数组，列出关键信息)。严禁输出除JSON以外的文字。';
+			$base_prompt .= '访问失败、403、429、验证码、Cloudflare挑战、登录页面或信息不足必须返回unknown；只有商品本身明确缺货或下架才返回offline。';
 			$extra       = isset( $provider['prompt_valid'] ) ? trim( (string) $provider['prompt_valid'] ) : '';
 			if ( ! empty( $extra ) ) {
 				$base_prompt .= '\n\n决策要求：' . $extra . '\n务必保持JSON格式。';
@@ -288,10 +316,9 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 			$offline_map  = array(
 				'out of stock'          => '出现“out of stock”字样',
 				'sold out'               => '出现“sold out”字样',
-				'currently unavailable'  => '出现“currently unavailable”提示',
-				'not available'          => '出现“not available”提示',
+				'this product is currently unavailable' => '商品明确提示当前不可售',
+				'this product/service is currently unavailable' => '商品明确提示当前不可售',
 				'discontinued'           => '页面提示已下架',
-				'oops'                   => '页面出现错误提示',
 			);
 			$online_map   = array(
 				'add to cart'   => '包含“add to cart”，疑似可下单',
@@ -360,7 +387,7 @@ if ( ! class_exists( 'ASV_Availability_Service' ) ) {
 				return 'online';
 			}
 
-			if ( in_array( $status, array( 'offline', 'soldout', 'false', 'sold_out', 'out', 'error' ), true ) ) {
+			if ( in_array( $status, array( 'offline', 'soldout', 'false', 'sold_out', 'out' ), true ) ) {
 				return 'offline';
 			}
 

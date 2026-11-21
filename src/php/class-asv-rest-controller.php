@@ -83,6 +83,22 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		public function register_routes() {
 			register_rest_route(
 				self::NAMESPACE_SLUG,
+				'/browser-settings',
+				array(
+					array(
+						'methods' => WP_REST_Server::READABLE,
+						'callback' => array( $this, 'get_browser_settings' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+					array(
+						'methods' => WP_REST_Server::CREATABLE,
+						'callback' => array( $this, 'save_browser_settings' ),
+						'permission_callback' => array( $this, 'can_manage' ),
+					),
+				)
+			);
+			register_rest_route(
+				self::NAMESPACE_SLUG,
 				'/config',
 				array(
 					array(
@@ -288,11 +304,14 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		 * Save config file.
 		 *
 		 * @param WP_REST_Request $request Request.
-		 * @return WP_REST_Response
+		 * @return WP_REST_Response|WP_Error
 		 */
 		public function save_config( $request ) {
 			$content = (string) $request->get_param( 'content' );
-			$this->repository->save_config_raw( wp_unslash( $content ) );
+			if ( ! ASV_Config_Repository::valid_url_formats( $content ) ) {
+				return new WP_Error( 'asv_invalid_url_format', '商品厂商的 sale_format 和 valid_format 必须是包含 {pid} 的 HTTP 或 HTTPS URL。', array( 'status' => 400 ) );
+			}
+			$this->repository->save_config_raw( $content );
 			return rest_ensure_response( array( 'saved' => true ) );
 		}
 
@@ -385,6 +404,21 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		}
 
 		/**
+		 * Browser service address, visible only to administrators.
+		 */
+		public function get_browser_settings() {
+			return rest_ensure_response( array(
+				'base_url' => ASV_Browser_Settings::get_base_url(),
+				'default_base_url' => ASV_Browser_Settings::DEFAULT_BASE_URL,
+			) );
+		}
+
+		public function save_browser_settings( $request ) {
+			$result = ASV_Browser_Settings::save( $request->get_param( 'base_url' ) );
+			return is_wp_error( $result ) ? $result : $this->get_browser_settings();
+		}
+
+		/**
 		 * Design payload (extra css).
 		 *
 		 * @return WP_REST_Response
@@ -420,9 +454,17 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			$model    = $this->repository->get_model();
 			$statuses = $this->repository->get_statuses();
 			$vps      = array();
+			$previous = array();
+			foreach ( $this->repository->get_vps_snapshot() as $entry ) {
+				$previous[ $entry['vendor'] . '-' . $entry['pid'] ] = $entry;
+			}
 
 			foreach ( $this->repository->get_vps_definitions() as $definition ) {
-				$meta       = $this->parser->extract_meta( $definition['sale_url'] );
+				$meta       = $this->parser->extract_meta( $definition['valid_url'], $definition['valid_delay'] );
+				$old = $previous[ $definition['vendor'] . '-' . $definition['pid'] ] ?? array();
+				if ( empty( $meta ) && ! empty( $old['meta'] ) ) {
+					$meta = $old['meta'];
+				}
 				$status     = isset( $statuses[ $definition['vendor'] . '-' . $definition['pid'] ] ) ? $statuses[ $definition['vendor'] . '-' . $definition['pid'] ] : null;
 				$promo      = $this->promo->get_promo( $definition, $model, $meta );
 				$meta_view  = $this->meta->get_display( $definition, $model, $meta );
@@ -438,6 +480,8 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 					'promo'         => $promo['content'],
 					'promo_source'  => $promo['source'],
 					'available'     => $status ? $status['available'] : null,
+					'check_status'  => $status['check_status'] ?? null,
+					'attempted_at'  => $status['attempted_at'] ?? null,
 					'checked_at'    => $status ? $status['checked_at'] : null,
 					'message'       => $status ? $status['message'] : '',
 					'valid_delay'   => $definition['valid_delay'],
@@ -497,13 +541,9 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			$result    = $this->availability->validate_vps( $definition, $provider );
 			$statuses  = $this->repository->get_statuses();
 			$key       = $vendor . '-' . $pid;
-			$statuses[ $key ] = array(
-				'available' => $result['available'],
-				'checked_at' => time(),
-				'message'   => $result['message'],
-			);
+			$statuses[ $key ] = ASV_Availability_Service::status_record( $result, $statuses[ $key ] ?? array() );
 			$this->repository->save_statuses( $statuses );
-			$this->repository->update_vps_snapshot_status( $vendor, $pid, $result['available'], $result['message'], $statuses[ $key ]['checked_at'] );
+			$this->repository->update_vps_snapshot_fields( $vendor, $pid, $statuses[ $key ] );
 
 			return rest_ensure_response( $statuses[ $key ] );
 		}
@@ -526,7 +566,7 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			}
 
 			$model = $this->repository->get_model();
-			$meta  = $this->parser->extract_meta( $definition['sale_url'] );
+			$meta  = $this->parser->extract_meta( $definition['valid_url'], $definition['valid_delay'] );
 			$promo = null;
 
 			if ( null !== $content ) {
@@ -572,7 +612,7 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			}
 
 			$model = $this->repository->get_model();
-			$meta  = $this->parser->extract_meta( $definition['sale_url'] );
+			$meta  = $this->parser->extract_meta( $definition['valid_url'], $definition['valid_delay'] );
 
 			if ( null !== $content ) {
 				$body = sanitize_textarea_field( wp_unslash( (string) $content ) );
@@ -604,7 +644,10 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 		 * @return WP_REST_Response
 		 */
 		public function run_diagnostics() {
-			$network = wp_remote_get( 'https://www.racknerd.com/', array( 'timeout' => 15 ) );
+			$definitions = $this->repository->get_vps_definitions();
+			$definition = $definitions[0] ?? array();
+			$fetcher = new ASV_Page_Fetcher();
+			$network = $fetcher->fetch( $definition['valid_url'] ?? '', $definition['valid_delay'] ?? array( 5, 10 ) );
 			$model   = $this->repository->get_model();
 			$provider = $this->get_provider_config( $model );
 			$llm     = new ASV_LLM_Client(
@@ -625,8 +668,8 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 			return rest_ensure_response(
 				array(
 					'network' => array(
-						'ok'      => ! is_wp_error( $network ) && 200 === (int) wp_remote_retrieve_response_code( $network ),
-						'message' => is_wp_error( $network ) ? $network->get_error_message() : '连接正常',
+						'ok'      => ! is_wp_error( $network ),
+						'message' => is_wp_error( $network ) ? $network->get_error_message() : '商品采集正常（' . $network['source'] . '）',
 					),
 					'llm' => $llm_status,
 				)
@@ -731,16 +774,19 @@ if ( ! class_exists( 'ASV_REST_Controller' ) ) {
 
 			switch ( $action ) {
 				case 'start':
-					$this->cron->maybe_schedule_cron();
+					$this->cron->schedule_cron();
 					$message = 'Cron 任务已启动';
 					break;
 
 				case 'stop':
-					$this->cron->unschedule_cron();
+					$this->cron->pause_cron();
 					$message = 'Cron 任务已停止';
 					break;
 
 				case 'reschedule':
+					if ( ! in_array( $interval, array( 'hourly', 'twicedaily', 'daily' ), true ) ) {
+						return new WP_Error( 'invalid_interval', 'Invalid schedule interval', array( 'status' => 400 ) );
+					}
 					$this->cron->reschedule_cron( $interval );
 					$message = sprintf( 'Cron 任务已重新安排，间隔：%s', $interval );
 					break;

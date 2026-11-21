@@ -1,0 +1,25 @@
+services:
+  asv-browser:
+    image: ghcr.io/flaresolverr/flaresolverr:v3.5.2@sha256:c80ae007ce2ccdcd217a12426e4f039ef763ff90738c808d38810c3e59323767
+    container_name: autosalevps-browser
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1.0
+    shm_size: 128m
+    tmpfs:
+      - /tmp:size=128M,mode=1777
+    environment:
+      LOG_LEVEL: warning
+      LOG_HTML: 'false'
+      TZ: Asia/Shanghai
+    networks:
+      - wordpress
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: '2'
+networks:
+  wordpress:
+    external: true
+    name: ${ASV_DOCKER_NETWORK:-npm_default}

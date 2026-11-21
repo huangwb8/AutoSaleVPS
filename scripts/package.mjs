@@ -1,67 +1,49 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const pad = (value) => String(value).padStart(2, '0');
-const now = new Date();
-const yearFull = now.getFullYear();
-const yearShort = pad(yearFull % 100);
-const month = pad(now.getMonth() + 1);
-const day = pad(now.getDate());
-const hours = pad(now.getHours());
-const minutes = pad(now.getMinutes());
-const version = `v${yearFull}${month}${day}${hours}${minutes}`;
-const versionShort = `v${yearShort}${month}${day}${hours}${minutes}`;
-const latestName = 'AutoSaleVPS.zip';
-const latestPath = resolve(latestName);
-const versionFilePath = resolve('version.md');
-
-const versionDocument =
-  `# AutoSaleVPS Version\n\n` +
-  `当前版本（vYYYYMMDDHHmm）：${version}\n` +
-  `短格式（vyymmddhhmm）：${versionShort}\n` +
-  `生成时间：${now.toISOString()}\n` +
-  `\n该文件会在执行 npm run package 时同步为最新打包版本。\n`;
-writeFileSync(versionFilePath, versionDocument, 'utf8');
-
-const pluginPath = resolve('autosalevps.php');
-const originalPlugin = readFileSync(pluginPath, 'utf8');
-const updatedPlugin = originalPlugin
-  .replace(/(Version:\s*)([^\r\n]+)/, `$1${version}`)
-  .replace(/(const\s+VERSION\s*=\s*')[^']+(')/, `$1${version}$2`);
-
-if (updatedPlugin === originalPlugin) {
-  console.warn('Warning: 未能写入自动版本号，请检查 autosalevps.php 格式。');
-} else {
-  writeFileSync(pluginPath, updatedPlugin, 'utf8');
+const root = fileURLToPath(new URL('../', import.meta.url));
+const version = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).version;
+const plugin = readFileSync(resolve(root, 'autosalevps.php'), 'utf8');
+const header = plugin.match(/^ \* Version: (\S+)$/m)?.[1];
+const constant = plugin.match(/const VERSION = '([^']+)'/)?.[1];
+if (version !== header || version !== constant) {
+  throw new Error('The PHP header and VERSION must match package.json before packaging.');
 }
 
-if (existsSync(latestPath)) {
-  rmSync(latestPath);
-}
-
-const excludes = [
-  'node_modules/*',
-  '.git/*',
-  latestName,
-  'tests/*',
-  '.DS_Store',
-  '**/.DS_Store',
-  'docs/*',
-  'scripts/*'
+const files = [
+  'autosalevps.php',
+  'LICENSE',
+  'assets/css/main.css',
+  'assets/js/main.js',
+  'assets/js/main.js.map',
+  'config/config.toml',
+  'config/model.toml',
+  ...readdirSync(resolve(root, 'src/php'), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.php'))
+    .map((entry) => `src/php/${entry.name}`)
+    .sort()
 ];
-const zipArgs = ['-r', latestName, '.', ...excludes.flatMap((p) => ['-x', p])];
 
-let status = 0;
+const stage = mkdtempSync(join(tmpdir(), 'autosalevps-package-'));
+const archive = 'AutoSaleVPS.zip';
 try {
-  const result = spawnSync('zip', zipArgs, { stdio: 'inherit' });
-  status = result.status ?? 0;
+  const packagedFiles = files.map((file) => {
+    const name = `AutoSaleVPS/${file}`;
+    const target = resolve(stage, name);
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(resolve(root, file), target);
+    return name;
+  });
+  const result = spawnSync('zip', ['-X', archive, ...packagedFiles], { cwd: stage, stdio: 'inherit' });
+  if (result.error || result.status !== 0) {
+    throw result.error ?? new Error(`zip exited with status ${result.status}`);
+  }
+  copyFileSync(resolve(stage, archive), resolve(root, archive));
+  writeFileSync(resolve(root, 'version.md'), `# AutoSaleVPS Version\n\nWordPress / npm: ${version}\n\nGit tag: v${version}\n`);
+  console.log(`Package created: ${archive} (version ${version})`);
 } finally {
-  writeFileSync(pluginPath, originalPlugin, 'utf8');
+  rmSync(stage, { recursive: true, force: true });
 }
-
-if (status !== 0) {
-  process.exit(status || 1);
-}
-
-console.log(`Package created: ${latestName} (version ${version})`);

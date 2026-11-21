@@ -1,4 +1,6 @@
 node_modules/
+vendor/
+.bensz-api/
 
 # Build artifacts and archives
 AutoSaleVPS.zip

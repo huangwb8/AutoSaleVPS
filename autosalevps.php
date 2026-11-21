@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AutoSaleVPS
  * Description: 基于 LLM 的 VPS 推广助手，提供配置管理、可用性校验与前端展示。
- * Version: 0.2.0
+ * Version: 1.0.0
  * Author: Bensz Conan
  */
 
@@ -23,7 +23,7 @@ if ( ! class_exists( 'AutoSaleVPS_Plugin' ) ) {
 		/**
 		 * Plugin version.
 		 */
-		const VERSION = '0.2.0';
+		const VERSION = '1.0.0';
 
 		/**
 		 * Repository.

@@ -11,6 +11,7 @@ if ( ! class_exists( 'ASV_Cron_Scheduler' ) ) {
 		 * Cron hook name.
 		 */
 		const CRON_HOOK = 'autosalevps_check_vps_availability';
+		const PAUSED_OPTION = 'autosalevps_cron_paused';
 
 		/**
 		 * Repository.
@@ -52,19 +53,25 @@ if ( ! class_exists( 'ASV_Cron_Scheduler' ) ) {
 		 * Schedule cron job if not already scheduled.
 		 */
 		public function maybe_schedule_cron() {
-			if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
-				// 默认每小时检查一次
+			if ( ! get_option( self::PAUSED_OPTION ) && ! wp_next_scheduled( self::CRON_HOOK ) ) {
 				wp_schedule_event( time(), 'hourly', self::CRON_HOOK );
 			}
 		}
 
 		/**
-		 * Schedule the cron job.
+		 * Resume automatic checks explicitly.
 		 */
 		public function schedule_cron() {
-			if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
-				wp_schedule_event( time(), 'hourly', self::CRON_HOOK );
-			}
+			delete_option( self::PAUSED_OPTION );
+			$this->maybe_schedule_cron();
+		}
+
+		/**
+		 * Pause automatic checks until an administrator resumes them.
+		 */
+		public function pause_cron() {
+			update_option( self::PAUSED_OPTION, true );
+			$this->unschedule_cron();
 		}
 
 		/**
@@ -117,23 +124,21 @@ if ( ! class_exists( 'ASV_Cron_Scheduler' ) ) {
 					// 更新状态
 					$key = $definition['vendor'] . '-' . $definition['pid'];
 					$statuses = $this->repository->get_statuses();
-					$statuses[ $key ] = array(
-						'available'  => $result['available'],
-						'checked_at' => time(),
-						'message'    => $result['message'],
-					);
+					$statuses[ $key ] = ASV_Availability_Service::status_record( $result, $statuses[ $key ] ?? array() );
 
 					$this->repository->save_statuses( $statuses );
-					$this->repository->update_vps_snapshot_status(
+					$this->repository->update_vps_snapshot_fields(
 						$definition['vendor'],
 						$definition['pid'],
-						$result['available'],
-						$result['message'],
-						$statuses[ $key ]['checked_at']
+						$statuses[ $key ]
 					);
 
 					$checked_count++;
 					$updated_count++;
+					if ( null === $result['available'] ) {
+						$this->log( $result['message'], 'warning' );
+						continue;
+					}
 
 					// 添加延迟以避免请求过于频繁
 					$delay = $definition['valid_delay'] ?? array( 5, 10 );
@@ -168,13 +173,16 @@ if ( ! class_exists( 'ASV_Cron_Scheduler' ) ) {
 			// 获取最后检查时间
 			$statuses = $this->repository->get_statuses();
 			$key = $vendor . '-' . $pid;
+			if ( isset( $statuses[ $key ]['check_status'] ) && 'ok' !== $statuses[ $key ]['check_status'] ) {
+				return time() - ( $statuses[ $key ]['attempted_at'] ?? 0 ) >= 300;
+			}
 
 			if ( ! isset( $statuses[ $key ]['checked_at'] ) ) {
 				// 从未检查过，需要检查
 				return true;
 			}
 
-			$last_checked = $statuses[ $key ]['checked_at'];
+			$last_checked = $statuses[ $key ]['attempted_at'] ?? $statuses[ $key ]['checked_at'];
 			$now = time();
 
 			// 如果距离上次检查已经超过了间隔时间，需要检查
@@ -234,6 +242,7 @@ if ( ! class_exists( 'ASV_Cron_Scheduler' ) ) {
 			$this->unschedule_cron();
 
 			// 重新安排
+			delete_option( self::PAUSED_OPTION );
 			wp_schedule_event( time(), $interval, self::CRON_HOOK );
 
 			$this->log( sprintf( 'Cron 任务已重新安排，间隔：%s', $interval ), 'success' );

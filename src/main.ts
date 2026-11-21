@@ -15,7 +15,7 @@ type ASVBootstrapPayload = {
 declare global {
   interface Window {
     ASV_BOOTSTRAP?: ASVBootstrapPayload;
-    AutoSaleVPSMount?: (target?: HTMLElement | null) => boolean;
+    AutoSaleVPSMount?: (_target?: HTMLElement | null) => boolean;
   }
 }
 

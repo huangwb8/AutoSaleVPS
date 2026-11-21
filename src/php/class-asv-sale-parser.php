@@ -4,27 +4,42 @@
  *
  * @package AutoSaleVPS
  */
+require_once __DIR__ . '/class-asv-page-fetcher.php';
 
 if ( ! class_exists( 'ASV_Sale_Parser' ) ) {
 	class ASV_Sale_Parser {
+		protected $fetcher;
+
+		public function __construct( $fetcher = null ) {
+			$this->fetcher = $fetcher ?? new ASV_Page_Fetcher();
+		}
 		/**
 		 * Fetch metadata from sale URL.
 		 *
 		 * @param string $sale_url Sale link.
 		 * @return array
 		 */
-		public function extract_meta( $sale_url ) {
+		public function extract_meta( $sale_url, $delay = array( 5, 10 ) ) {
 			if ( empty( $sale_url ) ) {
 				return array();
 			}
 
-			$response = wp_remote_get( $sale_url, array( 'timeout' => 20 ) );
+			$key = 'asv_meta_' . hash( 'sha256', $sale_url );
+			$response = $this->fetcher->fetch( $sale_url, $delay );
 
 			if ( is_wp_error( $response ) ) {
-				return array();
+				$cached = get_transient( $key );
+				return is_array( $cached ) ? $cached : array();
 			}
 
-			$body = wp_remote_retrieve_body( $response );
+			$lines = $this->parse_body( $response['body'] );
+			if ( ! empty( $lines ) ) {
+				set_transient( $key, $lines, 7 * 86400 );
+			}
+			return $lines;
+		}
+
+		public function parse_body( $body ) {
 			if ( empty( $body ) ) {
 				return array();
 			}
@@ -37,7 +52,7 @@ if ( ! class_exists( 'ASV_Sale_Parser' ) ) {
 			}
 
 			$xpath = new DOMXPath( $doc );
-			$nodes = $xpath->query( '//*[contains(@class, "product-info")]' );
+			$nodes = $xpath->query( '//*[contains(@class, "product-info") or contains(@class, "product-description") or contains(@class, "product-desc") or @id="productDescription"]' );
 			$lines = array();
 
 			if ( $nodes && $nodes->length > 0 ) {
@@ -50,7 +65,7 @@ if ( ! class_exists( 'ASV_Sale_Parser' ) ) {
 			}
 
 			if ( empty( $lines ) ) {
-				$li_nodes = $xpath->query( '//li' );
+				$li_nodes = $xpath->query( '//*[@id="order-standard_cart"]//li' );
 				foreach ( $li_nodes as $node ) {
 					$text = trim( preg_replace( '/\s+/', ' ', $node->textContent ) );
 					if ( $text ) {

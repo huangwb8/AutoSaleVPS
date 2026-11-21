@@ -2,10 +2,12 @@
 
 当 Argon 主题打开 PJAX 时，直接点击站内链接只会更新部分 DOM，而不会重新执行 WordPress 插入的初始化脚本，像 AutoSaleVPS 这类需要全量初始化的插件就会卡在“正在载入”状态。可以通过在主题中注入一个脚本，强制指定链接改为整页刷新。
 
+插件有延迟挂载、DOM 观察和 `window.AutoSaleVPSMount(target?)`：初始化资源和 `ASV_BOOTSTRAP` 已加载的前提下，可以重新挂载 PJAX 替换后的短码容器。首次从没有加载插件资源的页面通过 PJAX 进入短码页时，若仍停在加载提示，建议仅对短码所在 URL 强制整页刷新。
+
 ## 操作步骤
 
 1. 登录 WordPress 后台，进入 **外观 → Argon 主题 → 主题设置 → 自定义脚本（或页脚代码注入区）**。
-2. 粘贴下面的脚本并保存。脚本会拦截所有 PJAX 请求，只要目标链接匹配 `forceReloadRules` 中的任意规则，就直接 `window.location.href` 强制刷新（默认配置为整站）。
+2. 粘贴下面的脚本并保存。脚本会拦截所有 PJAX 请求，只要目标链接匹配 `forceReloadRules` 中的任意规则，就直接 `window.location.href` 强制刷新（示例仅匹配短码页）。
 
 ```html
 <script>
@@ -18,7 +20,7 @@
     //   'https://blognas.hwb0307.com/vps/*' -> 刷新 /vps 及其子路径
     //   'https://blognas.hwb0307.com/*'     -> 整站
     var forceReloadRules = [
-      'https://blognas.hwb0307.com/*'
+      'https://blognas.hwb0307.com/ad'
     ];
 
     function matchRule(url) {
@@ -67,5 +69,5 @@
 
 3. 如需恢复部分页面的 PJAX 行为，只要保留 `forceReloadRules` 中需要强刷的路径即可。例如仅 `/ad` 强制整页刷新：`['https://blognas.hwb0307.com/ad']`。
 
-保存后，无论从哪个页面跳转到 `forceReloadRules` 命中的 URL，都会整页加载，AutoSaleVPS 可以正常获取 WordPress 生成的 `ASV_BOOTSTRAP` 数据，不再卡在加载状态。
+把示例地址换成自己的短码页。保存后分别验证从普通页面点入、浏览器前进和后退，以及直接打开短码页。
 

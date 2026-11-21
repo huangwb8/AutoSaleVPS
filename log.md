@@ -4,6 +4,7 @@
 
 | Tag | Notes |
 | --- | --- |
+| v1.0.0 | 为商品规格和库存加入浏览器回退、域名冷却及历史结果保护；新增采集设置；修复定时任务管理并统一插件、ZIP 与 Git tag 版本。 |
 | v202512161332 | Refine auto-refresh VPS logic with cron-based background checking; system logs now display in reverse chronological order. |
 | v202512131538 | Extra CSS read endpoint now public for visitors; frontend visitor path re-fetches latest extra CSS without VPS refresh; packaged build refreshed. |
 | v202512131439 | Add persistent admin logs (file-backed + UI load/write), card "last updated" footer, README polish. |

@@ -1,13 +1,15 @@
-import { ASVRestClient, DiagnosticsResult, VpsRecord } from '../core/asvRestClient';
+import { ASVRestClient, CronAction, CronStatus, DiagnosticsResult, VpsRecord } from '../core/asvRestClient';
 import { ASVConfig } from '../core/asvConfig';
 
 import { ASVModal } from './ASVModal';
 import { ASVLogPanel, LogLevel, PersistedLog } from './ASVLogPanel';
 import { buildMetaDisplay, describeMetaSource } from './metaUtils';
+import { availabilityLabel } from './availabilityUtils';
+import { ASVBrowserSettings } from './ASVBrowserSettings';
 
 const CONFIG_DEFAULT_TEMPLATE = `[aff]
 [aff.rn]
-4886
+code = '4886'
 
 [url]
 [url.rn]
@@ -114,6 +116,7 @@ export class ASVApp {
   private modelBundle!: ModalBundle;
   private cssBundle!: ModalBundle;
   private keyModal!: ASVModal;
+  private browserSettings!: ASVBrowserSettings;
   private keyInput!: HTMLInputElement;
   private hasKey: boolean;
   private currentConfig?: ASVConfig;
@@ -204,8 +207,10 @@ export class ASVApp {
       checkBtn.dataset.action = 'diagnostics';
       const statusBtn = this.createButton('查看VPS状态', '刷新 VPS 列表');
       statusBtn.dataset.action = 'check-vps';
+      const settingsBtn = this.createButton('采集设置', '打开采集设置');
+      settingsBtn.dataset.action = 'browser-settings';
       actions.append(editConfigBtn, editModelBtn, addKeyBtn, cssBtn, cronBtn);
-      secondaryActions.append(checkBtn, statusBtn);
+      secondaryActions.append(checkBtn, statusBtn, settingsBtn);
 
       const timezoneWrap = document.createElement('div');
       timezoneWrap.className = 'asv-timezone';
@@ -331,6 +336,9 @@ export class ASVApp {
         case 'check-vps':
           this.handleManualStatusCheck();
           break;
+        case 'browser-settings':
+          void this.browserSettings.show();
+          break;
         case 'diagnostics':
           this.runDiagnostics();
           break;
@@ -353,6 +361,9 @@ export class ASVApp {
   }
 
   private prepareModals() {
+    this.browserSettings = new ASVBrowserSettings(this.root, this.rest, () => {
+      this.log('采集设置已保存', 'success');
+    });
     this.configBundle = this.createEditorModal('编辑 config.toml', CONFIG_DEFAULT_TEMPLATE, async () => {
       try {
         await this.rest.saveConfig(this.configBundle.textarea.value);
@@ -815,6 +826,9 @@ export class ASVApp {
       pill.textContent = '已售罄';
     }
 
+    pill.textContent = availabilityLabel(item.available, item.check_status);
+    pill.title = item.message || '';
+
     return pill;
   }
 
@@ -853,26 +867,27 @@ export class ASVApp {
   private async validateSingle(vendor: string, pid: string, source: string) {
     try {
       const result = await this.rest.validateVps(vendor, pid);
-      this.log(`${source}：${vendor} ${pid} -> ${result.available ? '在线' : '售罄'} (${result.message})`);
-      this.applyStatus(vendor, pid, result.available, result.message, result.checked_at);
+      this.log(`${source}：${vendor} ${pid} -> ${availabilityLabel(result.available, result.check_status)} (${result.message})`);
+      this.applyStatus(vendor, pid, result.available, result.message, result.checked_at, result.check_status);
     } catch (error) {
       this.log(`验证 ${vendor} ${pid} 失败：${(error as Error).message}`, 'error');
     }
   }
 
-  private applyStatus(vendor: string, pid: string, available: boolean, message: string, checkedAt?: number) {
+  private applyStatus(vendor: string, pid: string, available: boolean | null, message: string, checkedAt?: number | null, checkStatus?: string) {
     const key = `${vendor}-${pid}`;
     const card = this.vpsContainer.querySelector(`[data-key="${key}"]`);
     if (card) {
-      card.classList.toggle('asv-card--offline', !available);
-      const pill = card.querySelector('.asv-status-pill');
+      card.classList.toggle('asv-card--offline', available === false);
+      const pill = card.querySelector<HTMLElement>('.asv-status-pill');
       if (pill) {
-        pill.textContent = available ? '在线' : '已售罄';
-        pill.className = `asv-status-pill ${available ? 'asv-status-pill--up' : 'asv-status-pill--down'}`;
+        pill.textContent = availabilityLabel(available, checkStatus);
+        pill.title = message;
+        pill.className = `asv-status-pill asv-status-pill--${available === null ? 'idle' : available ? 'up' : 'down'}`;
       }
       card.querySelector('.asv-soldout')?.remove();
 
-      const normalizedCheckedAt = checkedAt ?? Math.floor(Date.now() / 1000);
+      const normalizedCheckedAt = checkedAt ?? null;
       if (normalizedCheckedAt) {
         (card as HTMLElement).dataset.checkedAt = `${normalizedCheckedAt}`;
       } else {
@@ -886,8 +901,9 @@ export class ASVApp {
 
     const match = this.currentVps.find((item) => item.vendor === vendor && item.pid === pid);
     if (match) {
-      const normalizedCheckedAt = checkedAt ?? Math.floor(Date.now() / 1000);
+      const normalizedCheckedAt = checkedAt ?? null;
       match.available = available;
+      match.check_status = checkStatus;
       match.message = message;
       match.checked_at = normalizedCheckedAt;
     }
@@ -990,21 +1006,21 @@ export class ASVApp {
 
   private async fetchCronStatus() {
     try {
-      const response = await this.rest.fetch('/cron');
-      const cronData = await response.json();
-      this.renderCronModal(cronData);
+      this.renderCronModal(await this.rest.fetchCronStatus());
     } catch (error) {
       this.log(`获取定时任务状态失败：${(error as Error).message}`, 'error');
     }
   }
 
-  private renderCronModal(cronData: { active: boolean; next_run: string | null; message: string }) {
+  private renderCronModal(cronData: CronStatus) {
+    this.root.querySelector('.asv-cron-modal')?.remove();
     const modal = new ASVModal('定时任务管理', this.createCronModalContent(cronData));
+    modal.getNode().classList.add('asv-cron-modal');
     modal.mount(this.root);
     modal.show();
   }
 
-  private createCronModalContent(cronData: { active: boolean; next_run: string | null; message: string }) {
+  private createCronModalContent(cronData: CronStatus) {
     const container = document.createElement('div');
     container.className = 'asv-modal__content';
 
@@ -1069,25 +1085,13 @@ export class ASVApp {
     return container;
   }
 
-  private async manageCron(action: string, interval?: string) {
+  private async manageCron(action: CronAction, interval?: string) {
     try {
-      const response = await this.rest.fetch('/cron', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action, interval }),
-      });
-      const result = await response.json();
+      const result = await this.rest.manageCron(action, interval);
 
       if (result.success) {
         this.log(result.message, 'success');
-        // 关闭当前 modal 并重新打开以刷新状态
-        const modal = document.querySelector('.asv-modal');
-        if (modal) {
-          modal.remove();
-        }
-        this.fetchCronStatus();
+        await this.fetchCronStatus();
       } else {
         this.log(`操作失败：${result.message}`, 'error');
       }
